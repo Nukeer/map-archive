@@ -1,0 +1,250 @@
+<div class="fundo" (click)="cancelar.emit()">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="titulo-mapeamento"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="cabecalho">
+      <h2 id="titulo-mapeamento">Mapeamento de PDF</h2>
+      <ol class="etapas">
+        @for (e of etapas; track e.chave) {
+          <li>
+            <button
+              type="button"
+              [class.atual]="$index === indiceEtapa()"
+              [class.concluida]="$index !== indiceEtapa() && etapaConcluida(e.chave)"
+              [disabled]="!podeIrPara($index)"
+              (click)="irParaEtapa($index)"
+            >
+              <span class="numero">{{ $index !== indiceEtapa() && etapaConcluida(e.chave) ? '✓' : $index + 1 }}</span>
+              {{ e.titulo }}
+            </button>
+          </li>
+        }
+      </ol>
+      <button type="button" class="botao-icone" aria-label="Fechar" (click)="cancelar.emit()">✕</button>
+    </header>
+
+    <div class="corpo">
+      <!-- Visualizador -->
+      <section class="visualizador">
+        <div class="barra">
+          @if (nomeArquivo()) {
+            <span class="arquivo" [title]="nomeArquivo()">{{ nomeArquivo() }}</span>
+          }
+          @if (totalPaginas()) {
+            <div class="grupo">
+              <button type="button" class="botao-icone" aria-label="Página anterior" [disabled]="pagina() <= 1" (click)="irPara(pagina() - 1)">‹</button>
+              <span>{{ pagina() }} / {{ totalPaginas() }}</span>
+              <button type="button" class="botao-icone" aria-label="Próxima página" [disabled]="pagina() >= totalPaginas()" (click)="irPara(pagina() + 1)">›</button>
+            </div>
+            <div class="grupo">
+              <button type="button" class="botao-icone" aria-label="Diminuir zoom" (click)="alterarZoom(-0.25)">−</button>
+              <span>{{ zoom() * 100 | number: '1.0-0' }}%</span>
+              <button type="button" class="botao-icone" aria-label="Aumentar zoom" (click)="alterarZoom(0.25)">+</button>
+            </div>
+          }
+        </div>
+
+        <div class="moldura">
+          @if (escolhendoRotulo()) {
+            <div class="instrucao" [attr.data-tipo]="campoDaEtapa()?.chave">
+              Clique no texto fixo que vem <strong>antes</strong> do valor (ex.: "CNPJ:"). Esc para cancelar.
+            </div>
+          }
+
+          <div class="area-pagina">
+            @if (!totalPaginas()) {
+              <div class="vazio">{{ carregando() ? 'Carregando PDF…' : 'Nenhum PDF carregado.' }}</div>
+            }
+
+            <div
+              class="pagina"
+              [hidden]="!totalPaginas()"
+              [style.width.px]="tamanhoPagina().largura"
+              [style.height.px]="tamanhoPagina().altura"
+            >
+              <canvas #canvas></canvas>
+              <div
+                class="camada-texto"
+                [class.selecionavel]="selecionavel()"
+                [attr.data-tipo]="campoDaEtapa()?.chave ?? 'termo'"
+                (pointerdown)="aoPressionar($event)"
+                (pointerover)="aoPassar($event)"
+              >
+                @for (t of tokensDaPagina(); track t.indice) {
+                  <span
+                    class="palavra"
+                    [attr.data-indice]="t.indice"
+                    [attr.data-tipo]="marcas().get(t.indice)?.tipo"
+                    [attr.data-papel]="marcas().get(t.indice)?.papel"
+                    [style.left.%]="t.caixa.x * 100"
+                    [style.top.%]="t.caixa.y * 100"
+                    [style.width.%]="t.caixa.largura * 100"
+                    [style.height.%]="t.caixa.altura * 100"
+                  ></span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Painel da etapa -->
+      <aside class="painel">
+        @switch (etapa()) {
+          @case ('documento') {
+            <h3>Documento de exemplo</h3>
+            <p class="sutil">Envie um PDF do tipo que deseja mapear. Ele serve de modelo para os próximos documentos.</p>
+            <label class="botao primario arquivo-botao">
+              {{ nomeArquivo() ? 'Trocar PDF' : 'Selecionar PDF' }}
+              <input type="file" accept="application/pdf,.pdf" hidden (change)="aoSelecionarArquivo($event)" />
+            </label>
+            @if (erroArquivo()) {
+              <p class="erro">{{ erroArquivo() }}</p>
+            } @else if (doc()) {
+              <p class="ok">{{ doc()!.tokens.length }} palavras encontradas em {{ totalPaginas() }} página(s).</p>
+            }
+
+            <label class="rotulo-campo">
+              Nome do tipo de documento
+              <input
+                type="text"
+                placeholder="Ex.: DARF, Guia DAS, Boleto FGTS"
+                [value]="nome()"
+                (input)="nome.set($any($event.target).value)"
+              />
+            </label>
+          }
+
+          @case ('termos') {
+            <h3>
+              Termos identificadores
+              <span class="contador" [class.ok]="termosValidos() >= minimoTermos">{{ termosValidos() }}/{{ minimoTermos }} mín.</span>
+            </h3>
+            <p class="sutil">
+              Clique nos textos fixos que só aparecem neste tipo de documento (ex.: "RECEITA FEDERAL").
+              Para frases, arraste do início ao fim. Pode atravessar linhas.
+            </p>
+
+            <ul class="lista-termos">
+              @for (t of termosInfo(); track $index) {
+                <li data-tipo="termo">
+                  <span class="termo-texto">{{ t.texto }}</span>
+                  <button type="button" class="botao-icone" aria-label="Remover termo" (click)="removerTermo($index)">✕</button>
+                  @if (t.duplicado) {
+                    <small class="aviso">Repetido.</small>
+                  } @else if (!t.encontrado) {
+                    <small class="aviso">Não encontrado neste PDF.</small>
+                  }
+                </li>
+              } @empty {
+                <li class="sutil">Nenhum termo ainda.</li>
+              }
+            </ul>
+
+            <form class="linha" (submit)="$event.preventDefault(); adicionarTermoDigitado()">
+              <input
+                type="text"
+                placeholder="Ou digite um termo"
+                [value]="termoDigitado()"
+                (input)="termoDigitado.set($any($event.target).value)"
+              />
+              <button type="submit" class="botao" [disabled]="!termoDigitado().trim()">Adicionar</button>
+            </form>
+          }
+
+          @case ('revisao') {
+            <h3>Revisão</h3>
+            <p class="sutil">Mapeamento aplicado ao PDF de exemplo.</p>
+            <label class="rotulo-campo">
+              Nome do tipo de documento
+              <input type="text" [value]="nome()" (input)="nome.set($any($event.target).value)" />
+            </label>
+
+            @for (r of revisao(); track r.chave) {
+              <div class="cartao" [attr.data-tipo]="r.chave">
+                <div class="cartao-topo">
+                  <strong>{{ r.rotulo }}</strong>
+                  <span [class.ok]="r.ok" [class.erro]="!r.ok">{{ r.ok ? '✓' : '✗' }}</span>
+                </div>
+                <code class="extraido">{{ r.teste?.valor ?? 'não encontrado' }}</code>
+                @if (r.campo) {
+                  <small class="sutil">
+                    Após "{{ r.campo.rotulo || 'início do documento' }}"
+                    @if (r.campo.indiceAposRotulo > 1) {
+                      · {{ r.campo.indiceAposRotulo }}º valor
+                    }
+                  </small>
+                }
+              </div>
+            }
+
+            <div class="cartao" data-tipo="termo">
+              <strong>Termos</strong>
+              @for (t of mapeamentoFinal()?.termos ?? []; track t) {
+                <small>✓ {{ t }}</small>
+              }
+            </div>
+          }
+
+          @default {
+            @if (campoDaEtapa(); as c) {
+              <h3 [attr.data-tipo]="c.chave"><span class="ponto"></span>{{ c.rotulo }}</h3>
+              <p class="sutil">
+                Clique em cima d{{ c.artigo }} no documento. Se o conteúdo ocupar mais de uma palavra ou quebrar linha,
+                arraste do início ao fim (ou clique no início e Shift+clique no fim).
+              </p>
+
+              @if (construidos()[c.chave]?.erro; as erro) {
+                <p class="erro">{{ erro }} Esperado: {{ c.dica }}.</p>
+              }
+
+              @if (construidos()[c.chave]?.campo; as campo) {
+                <div class="cartao" [attr.data-tipo]="c.chave">
+                  <small class="sutil">Valor encontrado</small>
+                  <code class="extraido">{{ campo.exemplo }}</code>
+
+                  <small class="sutil">Rótulo (texto fixo antes do valor)</small>
+                  <code class="extraido rotulo">{{ campo.rotulo || '— (início do documento)' }}</code>
+                  @if (campo.indiceAposRotulo > 1 || campo.ocorrenciaRotulo > 1) {
+                    <small class="sutil">
+                      {{ campo.indiceAposRotulo }}º valor após a {{ campo.ocorrenciaRotulo }}ª ocorrência do rótulo.
+                    </small>
+                  }
+
+                  <div class="acoes">
+                    <button type="button" class="botao" (click)="escolherRotulo()">
+                      {{ escolhendoRotulo() ? 'Cancelar' : 'Escolher outro rótulo' }}
+                    </button>
+                    @if (selecoes()[c.chave]?.rotulo) {
+                      <button type="button" class="botao" (click)="usarRotuloSugerido(c.chave)">Usar sugestão</button>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (selecoes()[c.chave]) {
+                <button type="button" class="link" (click)="limparCampo(c.chave)">Limpar seleção</button>
+              }
+            }
+          }
+        }
+      </aside>
+    </div>
+
+    <footer class="rodape">
+      <button type="button" class="botao" (click)="cancelar.emit()">Cancelar</button>
+      <div class="acoes">
+        <button type="button" class="botao" [disabled]="indiceEtapa() === 0" (click)="irParaEtapa(indiceEtapa() - 1)">Voltar</button>
+        @if (etapa() === 'revisao') {
+          <button type="button" class="botao primario" [disabled]="!etapaConcluida('revisao')" (click)="confirmar()">Salvar mapeamento</button>
+        } @else {
+          <button type="button" class="botao primario" [disabled]="!etapaConcluida(etapa())" (click)="irParaEtapa(indiceEtapa() + 1)">Avançar</button>
+        }
+      </div>
+    </footer>
+  </div>
+</div>

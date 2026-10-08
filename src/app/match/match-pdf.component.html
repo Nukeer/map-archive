@@ -1,0 +1,120 @@
+<section class="match">
+  <h2>Verificar documento</h2>
+
+  @if (!lista().length) {
+    <p class="sutil">Salve um mapeamento primeiro para poder verificar outros PDFs.</p>
+  } @else {
+    <div class="formulario">
+      <label>
+        Tipo de documento
+        <select (change)="selecionar($any($event.target).value)">
+          <option [value]="automatico" [selected]="modoAutomatico()" [disabled]="!totalComScore()">
+            Identificar automaticamente · {{ totalComScore() }} mapeamento(s) v3/v4
+          </option>
+          @for (m of lista(); track m.id) {
+            <option [value]="m.id" [selected]="m.id === selecionadoId()">
+              {{ m.nome }} · v{{ m.versao }}{{ m.arquivoExemplo ? ' · modelo: ' + m.arquivoExemplo : '' }}
+            </option>
+          }
+        </select>
+      </label>
+
+      <label class="botao primario" [class.desabilitado]="verificando()">
+        {{ verificando() ? 'Verificando…' : 'Enviar PDF para verificar' }}
+        <input type="file" accept="application/pdf,.pdf" hidden [disabled]="verificando()" (change)="aoSelecionarArquivo($event)" />
+      </label>
+    </div>
+
+    @if (erro()) {
+      <p class="erro">{{ erro() }}</p>
+    }
+
+    @if (ranking().length) {
+      <h3>Ranking ({{ ranking().length }} mapeamentos v3/v4)</h3>
+      @if (ambiguo()) {
+        <p class="aviso">Mais de um mapeamento aceitou este PDF. Adicione termos de exclusão para separar os tipos.</p>
+      }
+      <table class="ranking">
+        <tbody>
+          @for (item of ranking(); track item.mapeamento.id) {
+            <tr [class.atual]="item === resultado()" (click)="resultado.set(item)">
+              <td><span class="marca" [ngClass]="classe(item)"></span></td>
+              <th>{{ item.mapeamento.nome }} <small class="sutil">v{{ item.mapeamento.versao }}</small></th>
+              <td>{{ item.corresponde ? 'corresponde' : duvidoso(item) ? 'duvidoso' : 'não' }}</td>
+              <td>{{ item.avaliacao!.confianca | percent }}</td>
+              <td class="sutil">{{ item.mapeamento.arquivoExemplo }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+
+    @if (resultado(); as r) {
+      <div class="resultado" [ngClass]="classe(r)">
+        <div class="veredito">
+          <span class="icone">{{ r.corresponde ? '✓' : duvidoso(r) ? '?' : '✗' }}</span>
+          <div>
+            <strong>
+              {{ nomeArquivo() }} {{ r.corresponde ? 'é' : duvidoso(r) ? 'talvez seja' : 'não é' }} {{ r.mapeamento.nome }}
+              @if (r.avaliacao) {
+                <small class="sutil">· confiança {{ r.avaliacao.confianca | percent }}</small>
+              }
+            </strong>
+            @if (r.semTexto) {
+              <small>O PDF não tem texto selecionável (provavelmente digitalizado).</small>
+            } @else if (duvidoso(r)) {
+              <small>Alguns sinais não conferem. Confira abaixo antes de aceitar.</small>
+            } @else if (r.corresponde && !r.camposCompletos) {
+              <small>{{ r.avaliacao ? 'Documento confere' : 'Termos conferem' }}, mas algum campo não foi encontrado.</small>
+            } @else if (!r.corresponde) {
+              <small>{{ r.avaliacao ? 'Os sinais indicam outro tipo de documento.' : 'Faltam termos identificadores deste tipo de documento.' }}</small>
+            }
+          </div>
+        </div>
+
+        @if (r.avaliacao; as a) {
+          <h3>Sinais</h3>
+          <ul class="sinais">
+            @for (s of a.sinais; track s.chave) {
+              <li [class.ausente]="s.nota < 0">
+                {{ s.nota > 0 ? '✓' : s.nota < 0 ? '✗' : '–' }} <strong>{{ s.titulo }}</strong>
+                <small class="sutil">
+                  {{ s.detalhe }}{{ s.eliminatorio && s.nota < 0 ? ' · eliminatório' : '' }}{{ s.peso ? '' : ' · informativo' }}
+                </small>
+              </li>
+            }
+          </ul>
+        }
+
+        <h3>Termos identificadores</h3>
+        <ul>
+          @for (t of r.termos; track t.texto) {
+            <li [class.ausente]="!t.encontrado">
+              {{ t.encontrado ? '✓' : '✗' }} {{ t.texto }}
+              @if (t.celula) {
+                <small class="sutil">
+                  {{ t.celula }}{{ t.encontrado && !t.naPosicao ? ' · encontrado em outra posição' : '' }}
+                </small>
+              }
+            </li>
+          }
+        </ul>
+
+        @if (r.corresponde || duvidoso(r)) {
+          <h3>Dados extraídos</h3>
+          <table>
+            <tbody>
+              @for (c of r.campos; track c.chave) {
+                <tr [class.ausente]="!c.valor">
+                  <th>{{ c.rotulo }}</th>
+                  <td>{{ c.valor ? formatar(c.chave, c.valor) : 'não encontrado' }}</td>
+                  <td class="sutil">{{ c.celulas ? c.celulas + ' · ' : '' }}{{ c.origem }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+  }
+</section>

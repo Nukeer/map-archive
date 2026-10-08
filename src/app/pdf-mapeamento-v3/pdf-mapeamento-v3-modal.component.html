@@ -1,0 +1,91 @@
+@if (etapa() === 'mapear') {
+  <app-pdf-mapeamento-v2-modal
+    [arquivo]="arquivo()"
+    [mapeamento]="base()"
+    subtitulo="v3 · assinatura + score"
+    rotuloSalvar="Avançar"
+    (salvar)="aoMapear($event)"
+    (cancelar)="cancelar.emit()"
+  />
+} @else {
+  <div class="fundo">
+    <div class="caixa" role="dialog" aria-modal="true" aria-labelledby="titulo-mapeamento-v3">
+      <header class="cabecalho">
+        <h2 id="titulo-mapeamento-v3">Mapeamento de PDF <small>v3 · assinatura + score</small></h2>
+        <button type="button" class="botao-icone" aria-label="Fechar" (click)="cancelar.emit()">✕</button>
+      </header>
+
+      <div class="corpo">
+        @if (etapa() === 'arquivo') {
+          <p>
+            Escolha um PDF modelo. Além dos campos e termos (como na v2), a v3 guarda uma assinatura do documento:
+            código de barras, rótulos fixos do layout e formato das páginas.
+          </p>
+          <label class="botao primario" [class.desabilitado]="carregando()">
+            {{ carregando() ? 'Lendo…' : 'Escolher PDF modelo' }}
+            <input type="file" accept="application/pdf,.pdf" hidden [disabled]="carregando()" (change)="aoSelecionarArquivo($event)" />
+          </label>
+          @if (erro()) {
+            <p class="erro">{{ erro() }}</p>
+          }
+        } @else if (assinatura()) {
+          @if (assinatura(); as a) {
+            <h3>Assinatura gerada de {{ arquivo()?.name }}</h3>
+            <dl>
+              <dt>Código de barras</dt>
+              <dd>
+                @if (a.codigoBarras; as c) {
+                  {{ c.tipo === 'boleto' ? 'Boleto · banco ' + c.emissor : 'Arrecadação · segmento ' + c.segmento + ' · órgão ' + c.emissor }}
+                } @else {
+                  <span class="sutil">nenhuma linha digitável válida no texto (o sinal fica de fora do score)</span>
+                }
+              </dd>
+              <dt>Páginas</dt>
+              <dd>
+                {{ a.paginas }}
+                @if (a.tamanhoPagina; as t) {
+                  · {{ t.largura }}×{{ t.altura }} pt
+                }
+              </dd>
+              <dt>Rótulos do layout</dt>
+              <dd>
+                {{ a.rotulos.length }}
+                <details>
+                  <summary>ver</summary>
+                  <ul class="rotulos">
+                    @for (r of a.rotulos; track r) {
+                      <li>{{ r }}</li>
+                    }
+                  </ul>
+                </details>
+              </dd>
+          </dl>
+          }
+
+          <h3>Termos de exclusão <small class="sutil">opcional</small></h3>
+          <p class="sutil">
+            Um por linha. Se algum aparecer no PDF verificado, ele é reprovado (ex.: "Simples Nacional" para não confundir DARF com DAS).
+          </p>
+          <textarea rows="4" [value]="textoExclusoes()" (input)="textoExclusoes.set($any($event.target).value)"></textarea>
+          <ul>
+            @for (e of exclusoes(); track e.texto) {
+              <li [class.erro]="e.noModelo">
+                {{ e.texto }}{{ e.noModelo ? ' · aparece no próprio modelo, remova' : '' }}
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <footer class="rodape">
+        <button type="button" class="botao" (click)="cancelar.emit()">Cancelar</button>
+        @if (etapa() === 'assinatura') {
+          <div class="grupo">
+            <button type="button" class="botao" (click)="etapa.set('mapear')">Voltar aos campos</button>
+            <button type="button" class="botao primario" [disabled]="!podeSalvar()" (click)="confirmar()">Salvar mapeamento</button>
+          </div>
+        }
+      </footer>
+    </div>
+  </div>
+}

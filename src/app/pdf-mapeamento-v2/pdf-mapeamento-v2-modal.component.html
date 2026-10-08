@@ -1,0 +1,255 @@
+<div class="fundo" (click)="cancelar.emit()">
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="titulo-mapeamento-v2"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="cabecalho">
+      <h2 id="titulo-mapeamento-v2">Mapeamento de PDF <small>{{ subtitulo }}</small></h2>
+      <ol class="etapas">
+        @for (e of etapas; track e.chave) {
+          <li>
+            <button
+              type="button"
+              [class.atual]="$index === indiceEtapa()"
+              [class.concluida]="$index !== indiceEtapa() && etapaConcluida(e.chave)"
+              [disabled]="!podeIrPara($index)"
+              (click)="irParaEtapa($index)"
+            >
+              <span class="numero">{{ $index !== indiceEtapa() && etapaConcluida(e.chave) ? '✓' : $index + 1 }}</span>
+              {{ e.titulo }}
+            </button>
+          </li>
+        }
+      </ol>
+      <button type="button" class="botao-icone" aria-label="Fechar" (click)="cancelar.emit()">✕</button>
+    </header>
+
+    <div class="corpo">
+      <section class="visualizador">
+        <div class="barra">
+          @if (totalPaginas()) {
+            <div class="abas" role="tablist">
+              <button type="button" role="tab" [class.ativa]="visao() === 'pdf'" (click)="visao.set('pdf')">PDF</button>
+              <button type="button" role="tab" [class.ativa]="visao() === 'planilha'" (click)="visao.set('planilha')">Planilha</button>
+            </div>
+            <div class="grupo">
+              <button type="button" class="botao-icone" aria-label="Página anterior" [disabled]="pagina() <= 1" (click)="irPara(pagina() - 1)">‹</button>
+              <span>Pág. {{ pagina() }} / {{ totalPaginas() }}</span>
+              <button type="button" class="botao-icone" aria-label="Próxima página" [disabled]="pagina() >= totalPaginas()" (click)="irPara(pagina() + 1)">›</button>
+            </div>
+            @if (visao() === 'pdf') {
+              <div class="grupo">
+                <button type="button" class="botao-icone" aria-label="Diminuir zoom" (click)="alterarZoom(-0.25)">−</button>
+                <span>{{ zoom() * 100 | number: '1.0-0' }}%</span>
+                <button type="button" class="botao-icone" aria-label="Aumentar zoom" (click)="alterarZoom(0.25)">+</button>
+              </div>
+            } @else {
+              <button type="button" class="botao" (click)="baixarCsv()">Baixar CSV</button>
+            }
+          }
+          @if (nomeArquivo()) {
+            <span class="arquivo" [title]="nomeArquivo()">{{ nomeArquivo() }}</span>
+          }
+        </div>
+
+        <div
+          class="area"
+          [class.selecionavel]="selecionavel()"
+          [attr.data-tipo]="campoDaEtapa()?.chave ?? 'termo'"
+          (pointerdown)="aoPressionar($event)"
+          (pointerover)="aoPassar($event)"
+        >
+          @if (!totalPaginas()) {
+            <div class="vazio">{{ carregando() ? 'Carregando PDF…' : 'Nenhum PDF carregado.' }}</div>
+          }
+
+          <!-- Preview do PDF: cada bloco (célula) é clicável -->
+          <div
+            class="pagina"
+            [hidden]="!totalPaginas() || visao() !== 'pdf'"
+            [style.width.px]="tamanhoPagina().largura"
+            [style.height.px]="tamanhoPagina().altura"
+          >
+            <canvas #canvas></canvas>
+            @for (c of celulasDaPagina(); track c.id) {
+              <span
+                class="celula"
+                [attr.data-celula]="c.id"
+                [attr.data-tipo]="marcas().get(c.id)?.tipo"
+                [attr.data-papel]="marcas().get(c.id)?.papel"
+                [attr.data-ref]="referencia(c)"
+                [style.left.%]="c.caixa.x * 100"
+                [style.top.%]="c.caixa.y * 100"
+                [style.width.%]="c.caixa.largura * 100"
+                [style.height.%]="c.caixa.altura * 100"
+              ></span>
+            }
+          </div>
+
+          <!-- Mesma página como planilha -->
+          @if (totalPaginas() && visao() === 'planilha') {
+            <table class="grade">
+              <thead>
+                <tr>
+                  <th></th>
+                  @for (col of colunasDaPagina(); track col) {
+                    <th>{{ col }}</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (linha of gradeDaPagina(); track $index) {
+                  <tr>
+                    <th>{{ $index + 1 }}</th>
+                    @for (c of linha; track $index) {
+                      @if (c) {
+                        <td
+                          [attr.data-celula]="c.id"
+                          [attr.data-tipo]="marcas().get(c.id)?.tipo"
+                          [attr.data-papel]="marcas().get(c.id)?.papel"
+                        >{{ c.texto }}</td>
+                      } @else {
+                        <td></td>
+                      }
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </section>
+
+      <aside class="painel">
+        @switch (etapa()) {
+          @case ('documento') {
+            <h3>Documento de exemplo</h3>
+            <p class="sutil">
+              O PDF é convertido numa planilha (uma aba por página). Cada bloco de texto vira uma célula,
+              e o mapeamento guarda a linha e a coluna de cada item.
+            </p>
+            <label class="botao primario arquivo-botao">
+              {{ nomeArquivo() ? 'Trocar PDF' : 'Selecionar PDF' }}
+              <input type="file" accept="application/pdf,.pdf" hidden (change)="aoSelecionarArquivo($event)" />
+            </label>
+            @if (erroArquivo()) {
+              <p class="erro">{{ erroArquivo() }}</p>
+            } @else if (planilha()) {
+              <p class="ok">
+                {{ planilha()!.celulas.length }} células em {{ totalPaginas() }} aba(s).
+                <button type="button" class="link" (click)="visao.set('planilha')">Ver planilha</button>
+              </p>
+            }
+            <label class="rotulo-campo">
+              Nome do tipo de documento
+              <input
+                type="text"
+                placeholder="Ex.: DARF, Guia DAS, Boleto FGTS"
+                [value]="nome()"
+                (input)="nome.set($any($event.target).value)"
+              />
+            </label>
+          }
+
+          @case ('termos') {
+            <h3>
+              Termos identificadores
+              <span class="contador" [class.ok]="termosValidos() >= minimoTermos">{{ termosValidos() }}/{{ minimoTermos }} mín.</span>
+            </h3>
+            <p class="sutil">
+              Clique nas células com textos fixos que só aparecem neste tipo de documento (ex.: "RECEITA FEDERAL").
+              Arraste para juntar células.
+            </p>
+            <ul class="lista">
+              @for (t of termosInfo(); track $index) {
+                <li data-tipo="termo">
+                  <code class="ref">{{ t.ref }}</code>
+                  <span class="texto">{{ t.texto }}</span>
+                  <button type="button" class="botao-icone" aria-label="Remover termo" (click)="removerTermo($index)">✕</button>
+                  @if (t.duplicado) {
+                    <small class="aviso">Repetido.</small>
+                  }
+                </li>
+              } @empty {
+                <li class="sutil">Nenhum termo ainda.</li>
+              }
+            </ul>
+          }
+
+          @case ('revisao') {
+            <h3>Revisão</h3>
+            <p class="sutil">Mapeamento aplicado à planilha do PDF de exemplo.</p>
+            <label class="rotulo-campo">
+              Nome do tipo de documento
+              <input type="text" [value]="nome()" (input)="nome.set($any($event.target).value)" />
+            </label>
+            @for (r of revisao(); track r.chave) {
+              <div class="cartao" [attr.data-tipo]="r.chave">
+                <div class="cartao-topo">
+                  <strong>{{ r.rotulo }}</strong>
+                  @if (r.campo) {
+                    <code class="ref">{{ descreverIntervalo(r.campo.inicio, r.campo.fim) }}</code>
+                  }
+                  <span [class.ok]="r.ok" [class.erro]="!r.ok">{{ r.ok ? '✓' : '✗' }}</span>
+                </div>
+                <code class="extraido">{{ r.teste?.valor ?? 'não encontrado' }}</code>
+                @if (r.campo) {
+                  <small class="sutil">Rótulo: {{ descreverRotulo(r.campo) }}</small>
+                }
+              </div>
+            }
+            <div class="cartao" data-tipo="termo">
+              <strong>Termos</strong>
+              @for (t of mapeamentoFinal()?.termos ?? []; track t.texto) {
+                <small>✓ <code class="ref">Pág.{{ t.celula.pagina }}!{{ referencia(t.celula) }}</code> {{ t.texto }}</small>
+              }
+            </div>
+          }
+
+          @default {
+            @if (campoDaEtapa(); as c) {
+              <h3 [attr.data-tipo]="c.chave"><span class="ponto"></span>{{ c.rotulo }}</h3>
+              <p class="sutil">
+                Clique na célula d{{ c.artigo }}, no PDF ou na planilha. Se o conteúdo quebrar em mais de uma
+                linha, arraste da primeira à última célula (ou Shift+clique).
+              </p>
+
+              @if (construidos()[c.chave]?.erro; as erro) {
+                <p class="erro">{{ erro }} Esperado: {{ c.dica }}.</p>
+              }
+
+              @if (construidos()[c.chave]?.campo; as campo) {
+                <div class="cartao" [attr.data-tipo]="c.chave">
+                  <small class="sutil">Célula</small>
+                  <code class="extraido">{{ descreverIntervalo(campo.inicio, campo.fim) }}</code>
+                  <small class="sutil">Valor encontrado</small>
+                  <code class="extraido">{{ campo.exemplo }}</code>
+                  <small class="sutil">Rótulo de apoio: {{ descreverRotulo(campo) }}</small>
+                </div>
+              }
+
+              @if (selecoes()[c.chave]) {
+                <button type="button" class="link" (click)="limparCampo(c.chave)">Limpar seleção</button>
+              }
+            }
+          }
+        }
+      </aside>
+    </div>
+
+    <footer class="rodape">
+      <button type="button" class="botao" (click)="cancelar.emit()">Cancelar</button>
+      <div class="acoes">
+        <button type="button" class="botao" [disabled]="indiceEtapa() === 0" (click)="irParaEtapa(indiceEtapa() - 1)">Voltar</button>
+        @if (etapa() === 'revisao') {
+          <button type="button" class="botao primario" [disabled]="!etapaConcluida('revisao')" (click)="confirmar()">{{ rotuloSalvar }}</button>
+        } @else {
+          <button type="button" class="botao primario" [disabled]="!etapaConcluida(etapa())" (click)="irParaEtapa(indiceEtapa() + 1)">Avançar</button>
+        }
+      </div>
+    </footer>
+  </div>
+</div>
