@@ -1,5 +1,7 @@
 import { CampoMapeavel, PADROES } from '../pdf-mapeamento/pdf-mapeamento.model';
-import { escaparRegex, normalizarTexto, padronizar, palavrasFinaisSemDigitos } from '../pdf-mapeamento/extrator';
+import { FormatoCampo, escaparRegex, formatoDoCampo, normalizarTexto, palavrasFinaisSemDigitos } from '../pdf-mapeamento/extrator';
+import { TipoIdentificador, detectarIdentificador } from '../pdf-mapeamento/identificador';
+import type { MapeamentoQualquer } from '../armazenamento/mapeamentos-db.service';
 import { CelulaPlanilha, Planilha, ReferenciaCelula, celulaEm, celulasEntre, paraReferencia } from './planilha';
 
 /**
@@ -23,6 +25,8 @@ export interface CampoMapeadoV2 {
   exemplo: string;
   /** Rótulo vizinho, usado para confirmar a posição e para achar o valor se o layout mudar. */
   rotulo?: RotuloV2;
+  /** Só no campo `cnpj`: tipo do identificador. Ausente = CNPJ (mapeamentos antigos). */
+  identificador?: TipoIdentificador;
 }
 
 export interface TermoV2 {
@@ -39,6 +43,21 @@ export interface MapeamentoPdfV2 {
   termos: TermoV2[];
   /** Nome do PDF usado como modelo. */
   arquivoExemplo?: string;
+  /**
+   * Divergências aceitas em "Concluir com Divergência". Só viaja do assistente até o app, que
+   * as registra no histórico; não é gravado no mapeamento nem usado na extração.
+   */
+  divergencias?: string[];
+}
+
+/**
+ * Campos e termos de um mapeamento salvo, para reabrir no assistente ("Mapear Documentos" de um
+ * serviço já mapeado). A v1 não guarda posição na planilha e não pode ser reaberta assim.
+ */
+export function baseParaEditar(mapeamento: MapeamentoQualquer | null | undefined): MapeamentoPdfV2 | null {
+  if (!mapeamento || !('versao' in mapeamento)) return null;
+  const { nome, cnpj, competencia, valor, termos, arquivoExemplo } = mapeamento;
+  return { versao: 2, nome, cnpj, competencia, valor, termos, arquivoExemplo };
 }
 
 export interface ResultadoV2 {
@@ -58,15 +77,25 @@ const CELULAS_EXTRAS = 2;
 /** Quantos blocos à direita do rótulo verificar. */
 const BLOCOS_A_DIREITA = 4;
 
+/**
+ * @param identificador só no campo `cnpj`: tipo escolhido pelo usuário. Sem ele, o tipo é
+ * detectado pelo formato (CNPJ, CPF, CAEPF ou CNO; IE e IM precisam ser escolhidos).
+ */
 export function construirCampoV2(
   planilha: Planilha,
   tipo: CampoMapeavel,
   inicioId: number,
   fimId: number,
+  identificador?: TipoIdentificador,
 ): { campo?: CampoMapeadoV2; erro?: string; celulas?: CelulaPlanilha[]; celulaRotulo?: CelulaPlanilha } {
   const celulas = celulasEntre(planilha, inicioId, fimId);
   const texto = normalizarTexto(celulas.map(c => c.texto).join(' '));
-  const m = PADROES[tipo].exec(texto);
+  const tipoIdentificador = tipo === 'cnpj' ? (identificador ?? detectarIdentificador(texto)) : undefined;
+  if (tipo === 'cnpj' && !tipoIdentificador) {
+    return { erro: 'Não reconheci CNPJ, CPF, CAEPF ou CNO nas células selecionadas. Para IE ou IM, escolha o tipo.' };
+  }
+  const formato = formatoDoCampo(tipo, tipoIdentificador ?? undefined);
+  const m = formato.regex.exec(texto);
   if (!m) return { erro: 'As células selecionadas não contêm um valor neste formato.' };
 
   const primeira = celulas[0];
@@ -75,7 +104,8 @@ export function construirCampoV2(
     inicio: paraReferencia(primeira),
     fim: paraReferencia(ultima),
     celulas: celulas.length,
-    exemplo: padronizar(tipo, m),
+    exemplo: formato.padronizar(m),
+    ...(tipoIdentificador ? { identificador: tipoIdentificador } : {}),
   };
 
   // Rótulo dentro da própria célula, à esquerda na linha, ou cabeçalho acima.
@@ -132,7 +162,8 @@ function rotuloVizinho(planilha: Planilha, celula: CelulaPlanilha): CelulaPlanil
 export function extrairCampoV2(planilha: Planilha, tipo: CampoMapeavel, campo: CampoMapeadoV2): ResultadoV2 | null {
   const rotulo = normalizarRotulo(campo.rotulo);
   const maximo = (campo.celulas ?? campo.fim.linha - campo.inicio.linha + 1) + CELULAS_EXTRAS;
-  const ler = (c: CelulaPlanilha | undefined) => (c ? lerAPartir(planilha, tipo, c, maximo) : null);
+  const formato = formatoDoCampo(tipo, campo.identificador);
+  const ler = (c: CelulaPlanilha | undefined) => (c ? lerAPartir(planilha, formato, c, maximo) : null);
 
   // Mesma linha: pela coluna e, se não bater, pela posição do bloco na linha.
   const naPosicao = [celulaEm(planilha, campo.inicio), celulaNaOrdem(planilha, campo.inicio)].filter(
@@ -187,7 +218,7 @@ export function extrairCampoV2(planilha: Planilha, tipo: CampoMapeavel, campo: C
  */
 function lerAPartir(
   planilha: Planilha,
-  tipo: CampoMapeavel,
+  formato: FormatoCampo,
   inicio: CelulaPlanilha,
   maximo: number,
 ): Omit<ResultadoV2, 'origem'> | null {
@@ -196,8 +227,8 @@ function lerAPartir(
     const ultima = planilha.celulas[inicio.id + n - 1];
     if (!ultima || ultima.pagina !== inicio.pagina) break;
     const celulas = celulasEntre(planilha, inicio.id, ultima.id);
-    const m = PADROES[tipo].exec(normalizarTexto(celulas.map(c => c.texto).join(' ')));
-    if (m) return m.index < limite ? { valor: padronizar(tipo, m), celulas } : null;
+    const m = formato.regex.exec(normalizarTexto(celulas.map(c => c.texto).join(' ')));
+    if (m) return m.index < limite ? { valor: formato.padronizar(m), celulas } : null;
   }
   return null;
 }

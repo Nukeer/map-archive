@@ -1,0 +1,30 @@
+:host { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.bloco { max-width: 100%; overflow-x: auto; background: #fff; border: 1px solid var(--borda); border-radius: 6px; }
+h4 { margin: 0; padding: 4px 8px; border-bottom: 1px solid var(--borda); background: var(--fundo-claro); font-size: 0.8rem; }
+h4 small { color: var(--sutil); font-weight: 400; }
+table { border-collapse: collapse; font-size: 0.8rem; }
+td { position: relative; padding: 3px 8px; border: 1px solid var(--borda); border-width: 0 1px 1px 0; white-space: nowrap; }
+td:last-child { border-right: 0; }
+tr:last-child td { border-bottom: 0; }
+[data-tipo='cnpj'] { --cor: var(--cor-cnpj); }
+[data-tipo='competencia'] { --cor: var(--cor-competencia); }
+[data-tipo='valor'] { --cor: var(--cor-valor); }
+[data-tipo='termo'] { --cor: var(--cor-termo); }
+td[data-papel] { background: color-mix(in srgb, var(--cor) 25%, transparent); outline-offset: -2px; }
+td[data-papel='valor'] { outline: 2px solid var(--cor); }
+td[data-papel='rotulo'] { background: none; outline: 2px dashed var(--cor); }
+td[data-papel='selecao'] { background: color-mix(in srgb, var(--cor) 40%, transparent); }
+td[data-papel='erro'] { outline: 2px solid var(--cor-erro); }
+:host-context(.selecionavel) td[data-celula] { cursor: pointer; }
+:host-context(.selecionavel) td[data-celula]:hover { background: color-mix(in srgb, var(--cor) 18%, transparent); }
+:host-context(.selecionavel) td[data-celula]:hover::after {
+  content: attr(data-ref);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  z-index: 1;
+  padding: 0 4px;
+  background: var(--texto);
+  color: #fff;
+  font-size: 0.65rem;
+}

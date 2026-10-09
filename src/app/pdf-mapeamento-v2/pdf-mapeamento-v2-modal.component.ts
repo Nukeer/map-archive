@@ -12,6 +12,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ARQUIVOS_ACEITOS, formatoDoArquivo } from '../pdf-mapeamento/documento-texto';
 import { PdfDocumentoService } from '../pdf-mapeamento/pdf-documento.service';
 import { normalizarTexto } from '../pdf-mapeamento/extrator';
 import { CAMPOS, CampoMapeavel, Faixa, MINIMO_TERMOS } from '../pdf-mapeamento/pdf-mapeamento.model';
@@ -36,17 +37,25 @@ import {
   paraReferencia,
   referencia,
 } from './planilha';
+import { dividirEmBlocos, exportarBlocosCsv } from './blocos';
+import { verificarMapeamento } from './verificacao';
+import { MapeamentoSalvo } from '../armazenamento/mapeamentos-db.service';
+import { IDENTIFICADORES, TIPOS_IDENTIFICADOR, TipoIdentificador, nomeIdentificador } from '../pdf-mapeamento/identificador';
+import { BlocosPlanilhaComponent } from './blocos-planilha.component';
 
 type Etapa = 'documento' | CampoMapeavel | 'termos' | 'revisao';
 
+/** Ordem do assistente "Mapear Documentos": identificador, competência, termos, valor e validação. */
 const ETAPAS: ReadonlyArray<{ chave: Etapa; titulo: string }> = [
   { chave: 'documento', titulo: 'Documento' },
-  { chave: 'cnpj', titulo: 'CNPJ' },
+  { chave: 'cnpj', titulo: 'Identificador' },
   { chave: 'competencia', titulo: 'Competência' },
-  { chave: 'valor', titulo: 'Valor a pagar' },
   { chave: 'termos', titulo: 'Termos' },
-  { chave: 'revisao', titulo: 'Revisão' },
+  { chave: 'valor', titulo: 'Valor' },
+  { chave: 'revisao', titulo: 'Validação' },
 ];
+
+const CONCLUIR = 'Concluir Mapeamento';
 
 interface Marca {
   tipo: CampoMapeavel | 'termo';
@@ -59,19 +68,24 @@ const ZOOM_MAX = 3;
 @Component({
   selector: 'app-pdf-mapeamento-v2-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, BlocosPlanilhaComponent],
   providers: [PdfDocumentoService],
   templateUrl: './pdf-mapeamento-v2-modal.component.html',
   styleUrls: ['./pdf-mapeamento-v2-modal.component.scss'],
 })
 export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
+  readonly aceitos = ARQUIVOS_ACEITOS;
   /** PDF de exemplo já selecionado. Se ausente, o modal pede o arquivo. */
   @Input() arquivo: File | null = null;
   /** Mapeamento existente, para edição. */
   @Input() mapeamento: MapeamentoPdfV2 | null = null;
   /** Versões que reaproveitam este modal (ex.: v3) trocam o subtítulo e o botão final. */
   @Input() subtitulo = 'v2 · planilha';
-  @Input() rotuloSalvar = 'Salvar mapeamento';
+  @Input() rotuloSalvar = CONCLUIR;
+  /** Mapeamentos salvos: o mais recente com o mesmo nome (serviço) é o "anterior" na validação. */
+  @Input() set salvos(lista: MapeamentoSalvo[] | null) {
+    this.registros.set(lista ?? []);
+  }
 
   @Output() salvar = new EventEmitter<MapeamentoPdfV2>();
   @Output() cancelar = new EventEmitter<void>();
@@ -80,6 +94,8 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
 
   readonly etapas = ETAPAS;
   readonly minimoTermos = MINIMO_TERMOS;
+  readonly tiposIdentificador = TIPOS_IDENTIFICADOR.map(t => IDENTIFICADORES[t]);
+  readonly nomeIdentificador = nomeIdentificador;
   readonly referencia = referencia;
   readonly nomeColuna = nomeColuna;
   readonly descreverIntervalo = descreverIntervalo;
@@ -95,11 +111,24 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
   readonly erroArquivo = signal('');
 
   readonly planilha = signal<Planilha | null>(null);
-  readonly visao = signal<'pdf' | 'planilha'>('pdf');
+  readonly visao = signal<'pdf' | 'blocos' | 'planilha'>('pdf');
+  /** Contorna os blocos sobre o PDF. */
+  readonly contornarBlocos = signal(false);
   readonly pagina = signal(1);
   readonly totalPaginas = signal(0);
   readonly zoom = signal(1.25);
   readonly tamanhoPagina = signal({ largura: 0, altura: 0 });
+
+  /** Tipo do identificador; `auto` detecta pelo formato (IE e IM precisam ser escolhidos). */
+  readonly tipoIdentificador = signal<TipoIdentificador | 'auto'>('auto');
+  private readonly registros = signal<MapeamentoSalvo[]>([]);
+  /** Mapeamento já salvo para o mesmo serviço (nome), com que a validação compara. */
+  readonly anterior = computed(() => {
+    const nome = normalizarTexto(this.nome());
+    return (nome && this.registros().find(r => normalizarTexto(r.nome) === nome)) || null;
+  });
+  /** Resultado do botão Verificar, válido só para o mapeamento verificado (qualquer edição o descarta). */
+  private readonly verificacao = signal<{ para: MapeamentoPdfV2; itens: ReturnType<typeof verificarMapeamento> } | null>(null);
 
   /** Intervalo de células (ids, em ordem de leitura) escolhido para cada campo. */
   readonly selecoes = signal<Partial<Record<CampoMapeavel, Faixa>>>({});
@@ -112,6 +141,10 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
     const planilha = this.planilha();
     return planilha ? grade(planilha, this.pagina()) : [];
   });
+  readonly blocosDaPagina = computed(() => {
+    const planilha = this.planilha();
+    return planilha ? dividirEmBlocos(planilha, this.pagina()) : [];
+  });
   readonly colunasDaPagina = computed(() =>
     Array.from({ length: this.planilha()?.abas[this.pagina() - 1]?.colunas ?? 0 }, (_, i) => nomeColuna(i)),
   );
@@ -122,7 +155,9 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
     if (!planilha) return resultado;
     for (const { chave } of CAMPOS) {
       const faixa = this.selecoes()[chave];
-      if (faixa) resultado[chave] = construirCampoV2(planilha, chave, faixa.inicio, faixa.fim);
+      const tipo = this.tipoIdentificador();
+      const identificador = chave === 'cnpj' && tipo !== 'auto' ? tipo : undefined;
+      if (faixa) resultado[chave] = construirCampoV2(planilha, chave, faixa.inicio, faixa.fim, identificador);
     }
     return resultado;
   });
@@ -163,6 +198,13 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
       .map(t => ({ texto: t.texto, celula: paraReferencia(planilha.celulas[t.celula]) }));
     return { versao: 2, nome: this.nome().trim(), cnpj, competencia, valor, termos, arquivoExemplo: this.nomeArquivo() };
   });
+
+  readonly itensVerificados = computed(() => {
+    const v = this.verificacao();
+    return v && v.para === this.mapeamentoFinal() ? v.itens : null;
+  });
+  readonly divergencias = computed(() => this.itensVerificados()?.flatMap(i => i.divergencias) ?? []);
+  readonly rotuloComDivergencia = computed(() => (this.rotuloSalvar === CONCLUIR ? 'Concluir com Divergência' : `${this.rotuloSalvar} com divergência`));
 
   readonly marcas = computed(() => {
     const mapa = new Map<number, Marca>();
@@ -218,7 +260,7 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
       case 'termos':
         return this.termosValidos() >= MINIMO_TERMOS;
       case 'revisao':
-        return !!this.mapeamentoFinal() && this.revisao().every(r => r.ok);
+        return !!this.itensVerificados();
       default:
         return !!this.construidos()[chave]?.campo;
     }
@@ -248,8 +290,8 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
   }
 
   async carregar(arquivo: File): Promise<void> {
-    if (arquivo.type && arquivo.type !== 'application/pdf') {
-      this.erroArquivo.set('Selecione um arquivo PDF.');
+    if (!formatoDoArquivo(arquivo)) {
+      this.erroArquivo.set('Selecione um arquivo PDF, CSV ou TXT.');
       return;
     }
     this.erroArquivo.set('');
@@ -287,6 +329,8 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
       if (celulas?.length) selecoes[chave] = { inicio: celulas[0].id, fim: celulas[celulas.length - 1].id };
     }
     this.selecoes.set(selecoes);
+    const identificador = mapeamento.cnpj.identificador;
+    this.tipoIdentificador.set(identificador && !IDENTIFICADORES[identificador].automatico ? identificador : 'auto');
     this.termos.set(
       mapeamento.termos
         .filter(t => termoNaPosicao(planilha, t))
@@ -310,10 +354,12 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
   baixarCsv(): void {
     const planilha = this.planilha();
     if (!planilha) return;
-    const blob = new Blob(['﻿' + exportarCsv(planilha, this.pagina())], { type: 'text/csv;charset=utf-8' });
+    const blocos = this.visao() === 'blocos';
+    const csv = blocos ? exportarBlocosCsv(planilha, this.pagina()) : exportarCsv(planilha, this.pagina());
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${this.nomeArquivo().replace(/\.pdf$/i, '')}-pagina-${this.pagina()}.csv`;
+    link.download = `${this.nomeArquivo().replace(/\.pdf$/i, '')}-pagina-${this.pagina()}${blocos ? '-blocos' : ''}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
   }
@@ -379,11 +425,24 @@ export class PdfMapeamentoV2ModalComponent implements OnInit, OnDestroy {
     this.termos.update(lista => lista.filter((_, i) => i !== indice));
   }
 
-  // ---- Conclusão ----
+  // ---- Validação e conclusão ----
 
+  verificar(): void {
+    const planilha = this.planilha();
+    const mapeamento = this.mapeamentoFinal();
+    if (planilha && mapeamento) this.verificacao.set({ para: mapeamento, itens: verificarMapeamento(planilha, mapeamento, this.anterior()) });
+  }
+
+  /** "Concluir Mapeamento" ou, com divergências aceitas, "Concluir com Divergência". */
   confirmar(): void {
     const mapeamento = this.mapeamentoFinal();
-    if (mapeamento && this.etapaConcluida('revisao')) this.salvar.emit(mapeamento);
+    if (!mapeamento || !this.itensVerificados()) return;
+    const divergencias = this.divergencias();
+    this.salvar.emit(divergencias.length ? { ...mapeamento, divergencias } : mapeamento);
+  }
+
+  irParaEtapaDe(chave: Etapa): void {
+    this.irParaEtapa(ETAPAS.findIndex(e => e.chave === chave));
   }
 
   descreverRotulo(campo: CampoMapeadoV2): string {

@@ -177,7 +177,7 @@ export function testarNosModelos(mapeamento: MapeamentoPdfV2, modelos: ModeloV4[
   return modelos.map(m => {
     const campos = CAMPOS.map(({ chave, rotulo }) => {
       const valor = extrairCampoV2(m.planilha, chave, mapeamento[chave])?.valor ?? null;
-      return { chave, rotulo, valor, valido: campoValido(chave, valor, hoje) };
+      return { chave, rotulo, valor, valido: campoValido(chave, valor, hoje, mapeamento.cnpj.identificador) };
     });
     const termosAusentes = mapeamento.termos.filter(t => !termoPresente(m.planilha, t.texto)).map(t => t.texto);
     return { nome: m.nome, campos, termosAusentes, ok: campos.every(c => c.valido) && !termosAusentes.length };

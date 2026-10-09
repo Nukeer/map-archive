@@ -12,6 +12,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ARQUIVOS_ACEITOS, formatoDoArquivo } from './documento-texto';
 import { PdfDocumentoService } from './pdf-documento.service';
 import {
   CampoConstruido,
@@ -60,6 +61,7 @@ const ZOOM_MAX = 3;
   styleUrls: ['./pdf-mapeamento-modal.component.scss'],
 })
 export class PdfMapeamentoModalComponent implements OnInit, OnDestroy {
+  readonly aceitos = ARQUIVOS_ACEITOS;
   /** PDF de exemplo já selecionado. Se ausente, o modal pede o arquivo. */
   @Input() arquivo: File | null = null;
   /** Mapeamento existente, para edição. */
@@ -232,8 +234,8 @@ export class PdfMapeamentoModalComponent implements OnInit, OnDestroy {
   }
 
   async carregar(arquivo: File): Promise<void> {
-    if (arquivo.type && arquivo.type !== 'application/pdf') {
-      this.erroArquivo.set('Selecione um arquivo PDF.');
+    if (!formatoDoArquivo(arquivo)) {
+      this.erroArquivo.set('Selecione um arquivo PDF, CSV ou TXT.');
       return;
     }
     this.erroArquivo.set('');

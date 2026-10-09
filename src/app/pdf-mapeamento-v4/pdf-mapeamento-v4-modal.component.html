@@ -2,6 +2,7 @@
   <app-pdf-mapeamento-v2-modal
     [arquivo]="validos()[0].arquivo"
     [mapeamento]="base()"
+    [salvos]="salvos"
     subtitulo="v4 · vários modelos"
     rotuloSalvar="Avançar"
     (salvar)="aoMapear($event)"
@@ -11,7 +12,7 @@
   <div class="fundo">
     <div class="caixa" role="dialog" aria-modal="true" aria-labelledby="titulo-mapeamento-v4">
       <header class="cabecalho">
-        <h2 id="titulo-mapeamento-v4">Mapeamento de PDF <small>v4 · vários modelos</small></h2>
+        <h2 id="titulo-mapeamento-v4">Mapear Documentos <small>v4 · vários modelos</small></h2>
         <button type="button" class="botao-icone" aria-label="Fechar" (click)="cancelar.emit()">✕</button>
       </header>
 
@@ -48,7 +49,7 @@
           @if (modelos().length < maximoModelos) {
             <label class="botao" [class.primario]="!podeAvancar()" [class.desabilitado]="carregando()">
               {{ carregando() ? 'Lendo…' : modelos().length ? 'Adicionar mais PDFs' : 'Escolher PDFs modelo' }}
-              <input type="file" accept="application/pdf,.pdf" multiple hidden [disabled]="carregando()" (change)="aoSelecionarArquivos($event)" />
+              <input type="file" [accept]="aceitos" multiple hidden [disabled]="carregando()" (change)="aoSelecionarArquivos($event)" />
             </label>
           }
           @if (erro()) {
@@ -174,7 +175,9 @@
           } @else {
             <button type="button" class="botao" (click)="etapa.set('arquivos')">Modelos</button>
             <button type="button" class="botao" (click)="etapa.set('mapear')">Voltar aos campos</button>
-            <button type="button" class="botao primario" [disabled]="!podeSalvar()" (click)="confirmar()">Salvar mapeamento</button>
+            <button type="button" class="botao primario" [disabled]="!podeSalvar()" (click)="confirmar()">
+              {{ base()?.divergencias?.length ? 'Concluir com Divergência' : 'Concluir Mapeamento' }}
+            </button>
           }
         </div>
       </footer>

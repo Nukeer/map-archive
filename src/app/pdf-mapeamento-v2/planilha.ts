@@ -19,6 +19,9 @@ export interface AbaPlanilha {
   pagina: number;
   linhas: number;
   colunas: number;
+  /** Tamanho da página em pontos; as caixas das células são frações dele. */
+  largura: number;
+  altura: number;
 }
 
 export interface CelulaPlanilha {
@@ -86,6 +89,8 @@ export function converterParaPlanilha(tokens: TokenPdf[], dimensoes: DimensaoPag
       pagina,
       linhas: linhas.length,
       colunas: Math.max(0, ...celulas.filter(c => c.pagina === pagina).map(c => c.coluna + 1)),
+      largura: dimensao.largura,
+      altura: dimensao.altura,
     });
   });
 
@@ -147,7 +152,7 @@ type Alinhamento = 'esquerda' | 'direita' | 'centro';
  * blocos na página (borda esquerda, direita ou centro parecidas); grupos viram colunas
  * ordenadas da esquerda para a direita. Em cada linha as colunas são sempre crescentes.
  */
-function atribuirColunas(linhas: Array<Array<CelulaPlanilha['caixa']>>): number[][] {
+export function atribuirColunas(linhas: Array<Array<CelulaPlanilha['caixa']>>): number[][] {
   const bordas: Record<Alinhamento, (c: CelulaPlanilha['caixa']) => number> = {
     esquerda: c => c.x,
     direita: c => c.x + c.largura,

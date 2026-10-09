@@ -1,8 +1,10 @@
-import { Component, EventEmitter, OnDestroy, Output, computed, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, Output, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ARQUIVOS_ACEITOS, formatoDoArquivo } from '../pdf-mapeamento/documento-texto';
 import { PdfDocumentoService } from '../pdf-mapeamento/pdf-documento.service';
 import { normalizarTexto } from '../pdf-mapeamento/extrator';
-import { MapeamentoPdfV2, termoPresente } from '../pdf-mapeamento-v2/mapeamento-v2';
+import { MapeamentoPdfV2, baseParaEditar, termoPresente } from '../pdf-mapeamento-v2/mapeamento-v2';
+import { MapeamentoSalvo } from '../armazenamento/mapeamentos-db.service';
 import { Planilha, converterParaPlanilha } from '../pdf-mapeamento-v2/planilha';
 import { PdfMapeamentoV2ModalComponent } from '../pdf-mapeamento-v2/pdf-mapeamento-v2-modal.component';
 import { AssinaturaV3, MapeamentoPdfV3, gerarAssinatura } from './mapeamento-v3';
@@ -20,6 +22,15 @@ import { AssinaturaV3, MapeamentoPdfV3, gerarAssinatura } from './mapeamento-v3'
   styleUrls: ['./pdf-mapeamento-v3-modal.component.scss'],
 })
 export class PdfMapeamentoV3ModalComponent implements OnDestroy {
+  readonly aceitos = ARQUIVOS_ACEITOS;
+  /** Mapeamentos salvos, para a validação comparar com o anterior do mesmo serviço. */
+  @Input() salvos: MapeamentoSalvo[] = [];
+  /** "Mapear Documentos" de um serviço já mapeado: reabre com campos, termos e exclusões dele. */
+  @Input() set anterior(registro: MapeamentoSalvo | null) {
+    this.base.set(baseParaEditar(registro?.mapeamento));
+    const mapeamento = registro?.mapeamento;
+    if (mapeamento && 'exclusoes' in mapeamento) this.textoExclusoes.set(mapeamento.exclusoes.join('\n'));
+  }
   @Output() salvar = new EventEmitter<MapeamentoPdfV3>();
   @Output() cancelar = new EventEmitter<void>();
 
@@ -56,8 +67,8 @@ export class PdfMapeamentoV3ModalComponent implements OnDestroy {
     const arquivo = input.files?.[0];
     input.value = '';
     if (!arquivo) return;
-    if (arquivo.type && arquivo.type !== 'application/pdf') {
-      this.erro.set('Selecione um arquivo PDF.');
+    if (!formatoDoArquivo(arquivo)) {
+      this.erro.set('Selecione um arquivo PDF, CSV ou TXT.');
       return;
     }
     this.erro.set('');

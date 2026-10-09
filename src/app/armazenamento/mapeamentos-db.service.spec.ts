@@ -70,4 +70,22 @@ describe('MapeamentosDbService', () => {
     await db.excluir(original.id);
     expect(await db.listar()).toEqual([]);
   });
+
+  it('registra cada conclusão no histórico, com divergências e responsável', async () => {
+    const criado = await db.salvar(v2, undefined, { responsavel: 'Ana' });
+    expect(criado.situacao).toBe('mapeado');
+    expect(criado.historico).toEqual([
+      jasmine.objectContaining({ acao: 'criado', responsavel: 'Ana', termos: ['SIMPLES NACIONAL'], divergencias: [], gestorNotificado: false }),
+    ]);
+
+    const divergencia = 'Divergência Encontrada: O termo identificado no documento não corresponde ao mapeado anteriormente para este layout.';
+    const alterado = await db.salvar(v2, criado.id, { responsavel: 'Bruno', divergencias: [divergencia] });
+    expect(alterado.situacao).toBe('com-divergencia');
+    expect(alterado.historico!.map(h => [h.acao, h.responsavel, h.gestorNotificado])).toEqual([
+      ['criado', 'Ana', false],
+      ['alterado', 'Bruno', true],
+    ]);
+    expect(alterado.historico![1].divergencias).toEqual([divergencia]);
+    expect((await db.obter(criado.id))?.historico?.length).toBe(2);
+  });
 });

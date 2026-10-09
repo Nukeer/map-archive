@@ -3,6 +3,9 @@ import { normalizarTexto } from '../pdf-mapeamento/extrator';
 import type { DimensaoPagina } from '../pdf-mapeamento/pdf-documento.service';
 import { MapeamentoPdfV2, ehRotulo, regexFlexivel, termoPresente } from '../pdf-mapeamento-v2/mapeamento-v2';
 import { Planilha } from '../pdf-mapeamento-v2/planilha';
+import { IDENTIFICADORES, TipoIdentificador } from '../pdf-mapeamento/identificador';
+
+export { cnpjValido } from '../pdf-mapeamento/identificador';
 
 /**
  * v3 = mapeamento v2 (campos e termos por célula) + assinatura do PDF modelo, gerada
@@ -188,18 +191,6 @@ export function similaridadeLayout(
 
 // ---- Validação dos campos ----
 
-export function cnpjValido(cnpj: string): boolean {
-  const d = cnpj.replace(/\D/g, '');
-  if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
-  const dv = (base: string) => {
-    let soma = 0;
-    for (let i = base.length - 1, peso = 2; i >= 0; i--, peso = peso === 9 ? 2 : peso + 1) soma += Number(base[i]) * peso;
-    const resto = soma % 11;
-    return resto < 2 ? 0 : 11 - resto;
-  };
-  return dv(d.slice(0, 12)) === Number(d[12]) && dv(d.slice(0, 13)) === Number(d[13]);
-}
-
 /** "MM/AAAA" com mês válido e ano entre 2000 e o ano seguinte ao atual. */
 export function competenciaValida(competencia: string, hoje = new Date()): boolean {
   const m = /^(\d{2})\/(\d{4})$/.exec(competencia);
@@ -209,9 +200,10 @@ export function competenciaValida(competencia: string, hoje = new Date()): boole
   return mes >= 1 && mes <= 12 && ano >= 2000 && ano <= hoje.getFullYear() + 1;
 }
 
-export function campoValido(chave: CampoMapeavel, valor: string | null, hoje: Date): boolean {
+/** `identificador`: tipo do campo `cnpj` (CNPJ, CPF...); ausente = CNPJ. */
+export function campoValido(chave: CampoMapeavel, valor: string | null, hoje: Date, identificador: TipoIdentificador = 'cnpj'): boolean {
   if (!valor) return false;
-  if (chave === 'cnpj') return cnpjValido(valor);
+  if (chave === 'cnpj') return IDENTIFICADORES[identificador].validar(valor);
   if (chave === 'competencia') return competenciaValida(valor, hoje);
   return Number(valor) > 0;
 }
@@ -219,8 +211,8 @@ export function campoValido(chave: CampoMapeavel, valor: string | null, hoje: Da
 // ---- Score ----
 
 export interface SinalV3 {
-  /** `geometria` só existe a partir da v4. */
-  chave: 'exclusoes' | 'codigoBarras' | 'layout' | 'termos' | 'campos' | 'valorCodigo' | 'paginas' | 'geometria';
+  /** `geometria` só existe a partir da v4; `visual`, `fontes` e `produtor`, a partir da v5. */
+  chave: 'exclusoes' | 'codigoBarras' | 'layout' | 'termos' | 'campos' | 'valorCodigo' | 'paginas' | 'geometria' | 'visual' | 'fontes' | 'produtor';
   titulo: string;
   /** -1 (contra) a 1 (a favor). */
   nota: number;
@@ -328,7 +320,7 @@ export function avaliarV3(
   }
 
   // Campos extraídos e válidos (DV do CNPJ, data plausível, valor positivo).
-  const validos = campos.filter(c => campoValido(c.chave, c.valor, hoje));
+  const validos = campos.filter(c => campoValido(c.chave, c.valor, hoje, mapeamento.cnpj.identificador));
   const invalidos = campos.filter(c => !validos.includes(c));
   sinais.push({
     chave: 'campos',

@@ -7,7 +7,7 @@
     (click)="$event.stopPropagation()"
   >
     <header class="cabecalho">
-      <h2 id="titulo-mapeamento-v2">Mapeamento de PDF <small>{{ subtitulo }}</small></h2>
+      <h2 id="titulo-mapeamento-v2">Mapear Documentos <small>{{ subtitulo }}</small></h2>
       <ol class="etapas">
         @for (e of etapas; track e.chave) {
           <li>
@@ -33,6 +33,7 @@
           @if (totalPaginas()) {
             <div class="abas" role="tablist">
               <button type="button" role="tab" [class.ativa]="visao() === 'pdf'" (click)="visao.set('pdf')">PDF</button>
+              <button type="button" role="tab" [class.ativa]="visao() === 'blocos'" (click)="visao.set('blocos')">Blocos</button>
               <button type="button" role="tab" [class.ativa]="visao() === 'planilha'" (click)="visao.set('planilha')">Planilha</button>
             </div>
             <div class="grupo">
@@ -46,6 +47,10 @@
                 <span>{{ zoom() * 100 | number: '1.0-0' }}%</span>
                 <button type="button" class="botao-icone" aria-label="Aumentar zoom" (click)="alterarZoom(0.25)">+</button>
               </div>
+              <label class="grupo">
+                <input type="checkbox" [checked]="contornarBlocos()" (change)="contornarBlocos.set(!contornarBlocos())" />
+                Contornar blocos
+              </label>
             } @else {
               <button type="button" class="botao" (click)="baixarCsv()">Baixar CSV</button>
             }
@@ -74,6 +79,18 @@
             [style.height.px]="tamanhoPagina().altura"
           >
             <canvas #canvas></canvas>
+            @if (contornarBlocos()) {
+              @for (b of blocosDaPagina(); track b.numero) {
+                <span
+                  class="contorno-bloco"
+                  [attr.data-numero]="b.numero"
+                  [style.left.%]="b.caixa.x * 100"
+                  [style.top.%]="b.caixa.y * 100"
+                  [style.width.%]="b.caixa.largura * 100"
+                  [style.height.%]="b.caixa.altura * 100"
+                ></span>
+              }
+            }
             @for (c of celulasDaPagina(); track c.id) {
               <span
                 class="celula"
@@ -88,6 +105,11 @@
               ></span>
             }
           </div>
+
+          <!-- Mesma página separada em blocos, cada um com colunas próprias -->
+          @if (totalPaginas() && visao() === 'blocos') {
+            <app-blocos-planilha [blocos]="blocosDaPagina()" [marcas]="marcas()" />
+          }
 
           <!-- Mesma página como planilha -->
           @if (totalPaginas() && visao() === 'planilha') {
@@ -126,25 +148,33 @@
       <aside class="painel">
         @switch (etapa()) {
           @case ('documento') {
-            <h3>Documento de exemplo</h3>
+            <h3>Documento de exemplo <small class="sutil">PDF, CSV ou TXT</small></h3>
             <p class="sutil">
               O PDF é convertido numa planilha (uma aba por página). Cada bloco de texto vira uma célula,
-              e o mapeamento guarda a linha e a coluna de cada item.
+              e o mapeamento guarda a linha e a coluna de cada item. Na aba <strong>Blocos</strong> a página
+              aparece separada nas regiões do documento, cada uma com suas colunas; as referências
+              (ex.: Pág.1!B3) continuam as da planilha completa.
             </p>
             <label class="botao primario arquivo-botao">
-              {{ nomeArquivo() ? 'Trocar PDF' : 'Selecionar PDF' }}
-              <input type="file" accept="application/pdf,.pdf" hidden (change)="aoSelecionarArquivo($event)" />
+              {{ nomeArquivo() ? 'Trocar documento' : 'Selecionar documento' }}
+              <input type="file" [accept]="aceitos" hidden (change)="aoSelecionarArquivo($event)" />
             </label>
+            @if (anterior(); as a) {
+              <p class="aviso">
+                Este serviço já tem mapeamento (v{{ a.versao }}, {{ a.atualizadoEm | date: 'dd/MM/yyyy HH:mm' }}). Na validação, o
+                novo mapeamento é comparado com ele.
+              </p>
+            }
             @if (erroArquivo()) {
               <p class="erro">{{ erroArquivo() }}</p>
             } @else if (planilha()) {
               <p class="ok">
                 {{ planilha()!.celulas.length }} células em {{ totalPaginas() }} aba(s).
-                <button type="button" class="link" (click)="visao.set('planilha')">Ver planilha</button>
+                <button type="button" class="link" (click)="visao.set('blocos')">Ver em blocos</button>
               </p>
             }
             <label class="rotulo-campo">
-              Nome do tipo de documento
+              Serviço (tipo de documento)
               <input
                 type="text"
                 placeholder="Ex.: DARF, Guia DAS, Boleto FGTS"
@@ -180,16 +210,46 @@
           }
 
           @case ('revisao') {
-            <h3>Revisão</h3>
-            <p class="sutil">Mapeamento aplicado à planilha do PDF de exemplo.</p>
+            <h3>Validação</h3>
+            <p class="sutil">
+              Confira os itens marcados e clique em <strong>Verificar</strong>.
+              @if (anterior()) {
+                O mapeamento também é comparado com o anterior deste serviço.
+              }
+            </p>
             <label class="rotulo-campo">
-              Nome do tipo de documento
+              Serviço (tipo de documento)
               <input type="text" [value]="nome()" (input)="nome.set($any($event.target).value)" />
             </label>
+            @if (itensVerificados(); as itens) {
+              @for (item of itens; track item.etapa) {
+                <div class="cartao" [attr.data-tipo]="item.etapa === 'termos' ? 'termo' : item.etapa">
+                  <div class="cartao-topo">
+                    <strong>{{ item.titulo }}</strong>
+                    <span [class.ok]="item.ok" [class.erro]="!item.ok">{{ item.ok ? '✓' : '✗' }}</span>
+                  </div>
+                  <small class="sutil">{{ item.detalhe }}</small>
+                  @for (d of item.divergencias; track d) {
+                    <small class="erro">{{ d }}</small>
+                  }
+                  @if (!item.ok) {
+                    <button type="button" class="link" (click)="irParaEtapaDe(item.etapa)">Voltar e editar</button>
+                  }
+                </div>
+              }
+              @if (divergencias().length) {
+                <p class="aviso">
+                  {{ divergencias().length }} divergência(s). Volte e corrija, ou conclua com divergência: fica registrado no
+                  histórico e o gestor do departamento do serviço é notificado.
+                </p>
+              } @else {
+                <p class="ok">Nenhuma divergência encontrada.</p>
+              }
+            } @else {
             @for (r of revisao(); track r.chave) {
               <div class="cartao" [attr.data-tipo]="r.chave">
                 <div class="cartao-topo">
-                  <strong>{{ r.rotulo }}</strong>
+                  <strong>{{ r.chave === 'cnpj' ? nomeIdentificador(r.campo?.identificador) : r.rotulo }}</strong>
                   @if (r.campo) {
                     <code class="ref">{{ descreverIntervalo(r.campo.inicio, r.campo.fim) }}</code>
                   }
@@ -207,6 +267,7 @@
                 <small>✓ <code class="ref">Pág.{{ t.celula.pagina }}!{{ referencia(t.celula) }}</code> {{ t.texto }}</small>
               }
             </div>
+            }
           }
 
           @default {
@@ -217,12 +278,27 @@
                 linha, arraste da primeira à última célula (ou Shift+clique).
               </p>
 
+              @if (c.chave === 'cnpj') {
+                <label class="rotulo-campo">
+                  Tipo do identificador
+                  <select (change)="tipoIdentificador.set($any($event.target).value)">
+                    <option value="auto" [selected]="tipoIdentificador() === 'auto'">Detectar pelo formato (CNPJ, CPF, CAEPF, CNO)</option>
+                    @for (t of tiposIdentificador; track t.tipo) {
+                      <option [value]="t.tipo" [selected]="tipoIdentificador() === t.tipo">{{ t.nome }} · {{ t.mascara }}</option>
+                    }
+                  </select>
+                </label>
+              }
+
               @if (construidos()[c.chave]?.erro; as erro) {
                 <p class="erro">{{ erro }} Esperado: {{ c.dica }}.</p>
               }
 
               @if (construidos()[c.chave]?.campo; as campo) {
                 <div class="cartao" [attr.data-tipo]="c.chave">
+                  @if (campo.identificador) {
+                    <small class="sutil">Tipo: <strong>{{ nomeIdentificador(campo.identificador) }}</strong></small>
+                  }
                   <small class="sutil">Célula</small>
                   <code class="extraido">{{ descreverIntervalo(campo.inicio, campo.fim) }}</code>
                   <small class="sutil">Valor encontrado</small>
@@ -245,7 +321,13 @@
       <div class="acoes">
         <button type="button" class="botao" [disabled]="indiceEtapa() === 0" (click)="irParaEtapa(indiceEtapa() - 1)">Voltar</button>
         @if (etapa() === 'revisao') {
-          <button type="button" class="botao primario" [disabled]="!etapaConcluida('revisao')" (click)="confirmar()">{{ rotuloSalvar }}</button>
+          @if (!itensVerificados()) {
+            <button type="button" class="botao primario" [disabled]="!mapeamentoFinal()" (click)="verificar()">Verificar</button>
+          } @else if (divergencias().length) {
+            <button type="button" class="botao alerta" (click)="confirmar()">{{ rotuloComDivergencia() }}</button>
+          } @else {
+            <button type="button" class="botao primario" (click)="confirmar()">{{ rotuloSalvar }}</button>
+          }
         } @else {
           <button type="button" class="botao primario" [disabled]="!etapaConcluida(etapa())" (click)="irParaEtapa(indiceEtapa() + 1)">Avançar</button>
         }

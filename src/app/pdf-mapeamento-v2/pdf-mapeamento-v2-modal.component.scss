@@ -143,6 +143,16 @@
   canvas { display: block; width: 100%; height: 100%; }
 }
 
+.contorno-bloco {
+  position: absolute;
+  margin: -3px;
+  padding: 3px;
+  border: 1.5px dashed #0891b2;
+  border-radius: 4px;
+  pointer-events: none;
+  &::before { content: attr(data-numero); position: absolute; top: -9px; left: -9px; padding: 0 4px; border-radius: 3px; background: #0891b2; color: #fff; font-size: 0.65rem; }
+}
+
 .celula {
   position: absolute;
   border-radius: 2px;
@@ -306,7 +316,9 @@ input[type='text'] {
   background: #fff;
   font-size: 0.85rem;
   &.primario { background: var(--cor-cnpj); border-color: var(--cor-cnpj); color: #fff; }
+  &.alerta { background: #b45309; border-color: #b45309; color: #fff; }
 }
+select { padding: 6px 8px; border: 1px solid var(--borda); border-radius: 6px; font: inherit; font-weight: 400; }
 .arquivo-botao { align-self: flex-start; }
 .botao-icone {
   width: 28px;

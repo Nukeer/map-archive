@@ -3,6 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 import { TokenPdf } from './pdf-mapeamento.model';
+import { AparenciaPdf, LARGURA_MINIATURA, mapaDeBordas, normalizarFonte, normalizarProdutor } from '../pdf-mapeamento-v5/aparencia';
+import { DocumentoTextual, decodificarTexto, desenharTexto, formatoDoArquivo, lerCsv, lerTxt } from './documento-texto';
 
 /** Tamanho da página em pontos PDF (escala 1). */
 export interface DimensaoPagina {
@@ -12,16 +14,27 @@ export interface DimensaoPagina {
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'assets/pdfjs/pdf.worker.min.mjs';
 
-/** Abre o PDF, renderiza páginas e quebra o texto em palavras clicáveis. */
+/**
+ * Abre o documento (PDF, CSV ou TXT), renderiza páginas e quebra o texto em palavras clicáveis.
+ * CSV e TXT são desenhados como texto monoespaçado (ver `documento-texto.ts`).
+ */
 @Injectable()
 export class PdfDocumentoService {
   private documento: PDFDocumentProxy | null = null;
+  private textual: DocumentoTextual | null = null;
   private tarefaRender: RenderTask | null = null;
   private readonly medidor = document.createElement('canvas').getContext('2d')!;
 
   async abrir(arquivo: File): Promise<{ totalPaginas: number; tokens: TokenPdf[]; dimensoes: DimensaoPagina[] }> {
     await this.fechar();
+    const formato = formatoDoArquivo(arquivo);
+    if (!formato) throw new Error('Formato não suportado.');
     const dados = new Uint8Array(await arquivo.arrayBuffer());
+    if (formato !== 'pdf') {
+      const texto = decodificarTexto(dados);
+      this.textual = formato === 'csv' ? lerCsv(texto) : lerTxt(texto);
+      return { totalPaginas: this.textual.dimensoes.length, ...this.textual };
+    }
     this.documento = await pdfjsLib.getDocument({ data: dados }).promise;
 
     const tokens: TokenPdf[] = [];
@@ -39,10 +52,54 @@ export class PdfDocumentoService {
     this.tarefaRender?.cancel();
     await this.documento?.destroy();
     this.documento = null;
+    this.textual = null;
+  }
+
+  /**
+   * v5: desenha a 1ª página em miniatura (mapa de bordas) e lê as fontes e o programa gerador.
+   * Chamar depois de `abrir` e antes de `fechar`.
+   */
+  async aparencia(): Promise<AparenciaPdf> {
+    if (this.textual) return this.aparenciaTextual(this.textual);
+    if (!this.documento) throw new Error('Nenhum PDF aberto.');
+    const pagina = await this.documento.getPage(1);
+    const viewport = pagina.getViewport({ scale: LARGURA_MINIATURA / pagina.getViewport({ scale: 1 }).width });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const contexto = canvas.getContext('2d', { willReadFrequently: true })!;
+    contexto.fillStyle = '#fff';
+    contexto.fillRect(0, 0, canvas.width, canvas.height);
+    await pagina.render({ canvasContext: contexto, viewport }).promise;
+
+    // Depois de desenhada, as fontes da página ficam em `commonObjs`, com o nome original (BaseFont).
+    const { styles } = await pagina.getTextContent();
+    const fontes = Object.keys(styles)
+      .filter(id => pagina.commonObjs.has(id))
+      .map(id => normalizarFonte((pagina.commonObjs.get(id) as { name?: string }).name ?? ''))
+      .filter(Boolean);
+    const { info } = (await this.documento.getMetadata()) as { info: { Producer?: string; Creator?: string } };
+    return {
+      hash: mapaDeBordas(contexto.getImageData(0, 0, canvas.width, canvas.height)),
+      fontes: [...new Set(fontes)].sort(),
+      produtor: normalizarProdutor(info.Producer || info.Creator),
+    };
+  }
+
+  /** CSV e TXT: desenho da 1ª página; não há fontes embutidas nem programa gerador. */
+  private aparenciaTextual({ tokens, dimensoes }: DocumentoTextual): AparenciaPdf {
+    const escala = LARGURA_MINIATURA / dimensoes[0].largura;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(dimensoes[0].largura * escala);
+    canvas.height = Math.ceil(dimensoes[0].altura * escala);
+    const contexto = canvas.getContext('2d', { willReadFrequently: true })!;
+    desenharTexto(contexto, tokens, 1, dimensoes[0], escala);
+    return { hash: mapaDeBordas(contexto.getImageData(0, 0, canvas.width, canvas.height)), fontes: [] };
   }
 
   /** Renderiza a página no canvas e devolve o tamanho exibido (px CSS). */
   async renderizar(numero: number, canvas: HTMLCanvasElement, escala: number): Promise<{ largura: number; altura: number }> {
+    if (this.textual) return this.renderizarTexto(this.textual, numero, canvas, escala);
     if (!this.documento) return { largura: 0, altura: 0 };
     this.tarefaRender?.cancel();
 
@@ -66,6 +123,15 @@ export class PdfDocumentoService {
       if (this.tarefaRender === tarefa) this.tarefaRender = null;
     }
     return { largura: Math.floor(viewport.width), altura: Math.floor(viewport.height) };
+  }
+
+  private renderizarTexto({ tokens, dimensoes }: DocumentoTextual, numero: number, canvas: HTMLCanvasElement, escala: number) {
+    const dimensao = dimensoes[numero - 1];
+    const escalaTela = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(dimensao.largura * escala * escalaTela);
+    canvas.height = Math.floor(dimensao.altura * escala * escalaTela);
+    desenharTexto(canvas.getContext('2d')!, tokens, numero, dimensao, escala * escalaTela);
+    return { largura: Math.floor(dimensao.largura * escala), altura: Math.floor(dimensao.altura * escala) };
   }
 
   /** Adiciona as palavras da página em `tokens` e devolve o número da última linha usada. */

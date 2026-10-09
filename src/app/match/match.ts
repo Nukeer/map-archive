@@ -7,6 +7,9 @@ import { MapeamentoPdf } from '../pdf-mapeamento/pdf-mapeamento.model';
 import { MapeamentoSalvo } from '../armazenamento/mapeamentos-db.service';
 import { AvaliacaoV3, MapeamentoPdfV3, avaliarV3 } from '../pdf-mapeamento-v3/mapeamento-v3';
 import { MapeamentoPdfV4, avaliarV4 } from '../pdf-mapeamento-v4/mapeamento-v4';
+import { MapeamentoPdfV5, avaliarV5 } from '../pdf-mapeamento-v5/mapeamento-v5';
+import type { AparenciaPdf } from '../pdf-mapeamento-v5/aparencia';
+import { nomeIdentificador } from '../pdf-mapeamento/identificador';
 
 export interface ResultadoTermo {
   texto: string;
@@ -38,17 +41,21 @@ export interface ResultadoMatch {
   campos: ResultadoCampo[];
   /** O PDF não tem texto (provavelmente digitalizado). */
   semTexto: boolean;
-  /** v3 e v4: score com todos os sinais; `corresponde` = veredito "corresponde". */
+  /** v3 em diante: score com todos os sinais; `corresponde` = veredito "corresponde". */
   avaliacao?: AvaliacaoV3;
 }
 
-/** Verifica se o PDF (já convertido em tokens) é do tipo mapeado e extrai os campos. */
+/**
+ * Verifica se o PDF (já convertido em tokens) é do tipo mapeado e extrai os campos.
+ * `aparencia` só é usada pela v5; sem ela, os sinais de aparência ficam informativos.
+ */
 export function verificarDocumento(
   registro: MapeamentoSalvo,
   tokens: TokenPdf[],
   dimensoes: DimensaoPagina[],
+  aparencia?: AparenciaPdf,
 ): ResultadoMatch {
-  if (registro.versao === 3 || registro.versao === 4) return verificarComScore(registro, tokens, dimensoes);
+  if (temScore(registro)) return verificarComScore(registro, tokens, dimensoes, aparencia);
 
   const { termos, campos } =
     registro.versao === 2
@@ -71,7 +78,12 @@ function verificarV1(mapeamento: MapeamentoPdf, tokens: TokenPdf[]) {
     termos: mapeamento.termos.map(texto => ({ texto, encontrado: contemTermo(doc, texto) })),
     campos: CAMPOS.map(({ chave, rotulo }) => {
       const r = extrairCampo(doc, chave, mapeamento[chave]);
-      return { chave, rotulo, valor: r?.valor ?? null, origem: r ? `após "${mapeamento[chave].rotulo || 'início'}"` : undefined };
+      return {
+        chave,
+        rotulo: chave === 'cnpj' ? nomeIdentificador(mapeamento.cnpj.identificador) : rotulo,
+        valor: r?.valor ?? null,
+        origem: r ? `após "${mapeamento[chave].rotulo || 'início'}"` : undefined,
+      };
     }),
   };
 }
@@ -79,13 +91,18 @@ function verificarV1(mapeamento: MapeamentoPdf, tokens: TokenPdf[]) {
 const ORDEM_VEREDITO = { corresponde: 0, duvidoso: 1, nao: 2 } as const;
 
 /**
- * v3 e v4: compara o PDF com todos os mapeamentos que têm score e ordena do mais provável para o menos
+ * v3 em diante: compara o PDF com todos os mapeamentos que têm score e ordena do mais provável para o menos
  * (veredito e, depois, confiança). Serve para descobrir o tipo sem escolher o mapeamento antes.
  */
-export function identificarDocumento(registros: MapeamentoSalvo[], tokens: TokenPdf[], dimensoes: DimensaoPagina[]): ResultadoMatch[] {
+export function identificarDocumento(
+  registros: MapeamentoSalvo[],
+  tokens: TokenPdf[],
+  dimensoes: DimensaoPagina[],
+  aparencia?: AparenciaPdf,
+): ResultadoMatch[] {
   return registros
     .filter(temScore)
-    .map(r => verificarDocumento(r, tokens, dimensoes))
+    .map(r => verificarDocumento(r, tokens, dimensoes, aparencia))
     .sort(
       (a, b) =>
         ORDEM_VEREDITO[a.avaliacao!.veredito] - ORDEM_VEREDITO[b.avaliacao!.veredito] ||
@@ -94,17 +111,27 @@ export function identificarDocumento(registros: MapeamentoSalvo[], tokens: Token
 }
 
 /** Mapeamentos que decidem por score (e podem ser ranqueados). */
-export const temScore = (registro: MapeamentoSalvo) => registro.versao === 3 || registro.versao === 4;
+export const temScore = (registro: MapeamentoSalvo) => registro.versao >= 3;
 
-/** v3 e v4 extraem termos e campos como a v2 e decidem pelo score de sinais. */
-function verificarComScore(registro: MapeamentoSalvo, tokens: TokenPdf[], dimensoes: DimensaoPagina[]): ResultadoMatch {
-  const mapeamento = registro.mapeamento as MapeamentoPdfV3 | MapeamentoPdfV4;
+/** Mapeamentos que precisam da aparência do PDF (`PdfDocumentoService.aparencia`). */
+export const usaAparencia = (registro: MapeamentoSalvo) => registro.versao === 5;
+
+/** v3 em diante extraem termos e campos como a v2 e decidem pelo score de sinais. */
+function verificarComScore(
+  registro: MapeamentoSalvo,
+  tokens: TokenPdf[],
+  dimensoes: DimensaoPagina[],
+  aparencia?: AparenciaPdf,
+): ResultadoMatch {
+  const mapeamento = registro.mapeamento as MapeamentoPdfV3 | MapeamentoPdfV4 | MapeamentoPdfV5;
   const planilha = converterParaPlanilha(tokens, dimensoes);
   const { termos, campos } = verificarV2({ ...mapeamento, versao: 2 }, planilha);
   const avaliacao =
-    mapeamento.versao === 4
-      ? avaliarV4(mapeamento, planilha, dimensoes, termos, campos)
-      : avaliarV3(mapeamento, planilha, dimensoes, termos, campos);
+    mapeamento.versao === 5
+      ? avaliarV5(mapeamento, planilha, dimensoes, termos, campos, aparencia)
+      : mapeamento.versao === 4
+        ? avaliarV4(mapeamento, planilha, dimensoes, termos, campos)
+        : avaliarV3(mapeamento, planilha, dimensoes, termos, campos);
   return {
     mapeamento: registro,
     corresponde: tokens.length > 0 && avaliacao.veredito === 'corresponde',
@@ -131,7 +158,7 @@ function verificarV2(mapeamento: MapeamentoPdfV2, planilha: Planilha) {
       const ultima = r?.celulas[r.celulas.length - 1];
       return {
         chave,
-        rotulo,
+        rotulo: chave === 'cnpj' ? nomeIdentificador(mapeamento.cnpj.identificador) : rotulo,
         valor: r?.valor ?? null,
         origem: r ? origens[r.origem] : undefined,
         celulas: primeira && ultima ? descreverIntervalo(primeira, ultima) : undefined,

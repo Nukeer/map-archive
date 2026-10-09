@@ -2,6 +2,7 @@
   <app-pdf-mapeamento-v2-modal
     [arquivo]="arquivo()"
     [mapeamento]="base()"
+    [salvos]="salvos"
     subtitulo="v3 · assinatura + score"
     rotuloSalvar="Avançar"
     (salvar)="aoMapear($event)"
@@ -11,7 +12,7 @@
   <div class="fundo">
     <div class="caixa" role="dialog" aria-modal="true" aria-labelledby="titulo-mapeamento-v3">
       <header class="cabecalho">
-        <h2 id="titulo-mapeamento-v3">Mapeamento de PDF <small>v3 · assinatura + score</small></h2>
+        <h2 id="titulo-mapeamento-v3">Mapear Documentos <small>v3 · assinatura + score</small></h2>
         <button type="button" class="botao-icone" aria-label="Fechar" (click)="cancelar.emit()">✕</button>
       </header>
 
@@ -23,7 +24,7 @@
           </p>
           <label class="botao primario" [class.desabilitado]="carregando()">
             {{ carregando() ? 'Lendo…' : 'Escolher PDF modelo' }}
-            <input type="file" accept="application/pdf,.pdf" hidden [disabled]="carregando()" (change)="aoSelecionarArquivo($event)" />
+            <input type="file" [accept]="aceitos" hidden [disabled]="carregando()" (change)="aoSelecionarArquivo($event)" />
           </label>
           @if (erro()) {
             <p class="erro">{{ erro() }}</p>
@@ -82,7 +83,9 @@
         @if (etapa() === 'assinatura') {
           <div class="grupo">
             <button type="button" class="botao" (click)="etapa.set('mapear')">Voltar aos campos</button>
-            <button type="button" class="botao primario" [disabled]="!podeSalvar()" (click)="confirmar()">Salvar mapeamento</button>
+            <button type="button" class="botao primario" [disabled]="!podeSalvar()" (click)="confirmar()">
+              {{ base()?.divergencias?.length ? 'Concluir com Divergência' : 'Concluir Mapeamento' }}
+            </button>
           </div>
         }
       </footer>

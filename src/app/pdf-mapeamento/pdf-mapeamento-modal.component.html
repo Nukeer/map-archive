@@ -100,7 +100,7 @@
             <p class="sutil">Envie um PDF do tipo que deseja mapear. Ele serve de modelo para os próximos documentos.</p>
             <label class="botao primario arquivo-botao">
               {{ nomeArquivo() ? 'Trocar PDF' : 'Selecionar PDF' }}
-              <input type="file" accept="application/pdf,.pdf" hidden (change)="aoSelecionarArquivo($event)" />
+              <input type="file" [accept]="aceitos" hidden (change)="aoSelecionarArquivo($event)" />
             </label>
             @if (erroArquivo()) {
               <p class="erro">{{ erroArquivo() }}</p>

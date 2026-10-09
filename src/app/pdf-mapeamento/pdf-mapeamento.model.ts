@@ -1,4 +1,10 @@
-/** Campos de valor único que o usuário aponta no PDF. */
+import type { TipoIdentificador } from './identificador';
+
+/**
+ * Campos de valor único que o usuário aponta no PDF. `cnpj` é o identificador do contribuinte:
+ * o nome ficou por compatibilidade com os mapeamentos salvos, mas o tipo (CNPJ, CPF, CAEPF, CNO,
+ * IE ou IM) vai em `identificador` no campo mapeado.
+ */
 export type CampoMapeavel = 'cnpj' | 'competencia' | 'valor';
 
 /**
@@ -14,6 +20,8 @@ export interface CampoMapeado {
   indiceAposRotulo: number;
   /** Valor encontrado no PDF de exemplo, apenas para referência. */
   exemplo: string;
+  /** Só no campo `cnpj`: tipo do identificador. Ausente = CNPJ (mapeamentos antigos). */
+  identificador?: TipoIdentificador;
 }
 
 export interface MapeamentoPdf {
@@ -61,7 +69,12 @@ export const PADROES: Record<CampoMapeavel, RegExp> = {
 };
 
 export const CAMPOS: ReadonlyArray<{ chave: CampoMapeavel; rotulo: string; artigo: string; dica: string }> = [
-  { chave: 'cnpj', rotulo: 'CNPJ', artigo: 'o CNPJ', dica: '00.000.000/0000-00' },
+  {
+    chave: 'cnpj',
+    rotulo: 'Identificador',
+    artigo: 'o identificador (CNPJ, CPF, CAEPF, CNO, IE ou IM)',
+    dica: 'CNPJ 00.000.000/0000-00, CPF 000.000.000-00, CAEPF 000.000.000/000-00, CNO 00.000.00000/00, IE ou IM',
+  },
   { chave: 'competencia', rotulo: 'Mês de competência', artigo: 'o mês de competência', dica: 'MM/AAAA, DD/MM/AAAA ou "setembro/2026"' },
   { chave: 'valor', rotulo: 'Valor a pagar', artigo: 'o valor a pagar', dica: '1.234,56' },
 ];

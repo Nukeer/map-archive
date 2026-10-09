@@ -1,4 +1,5 @@
 import { CampoMapeado, CampoMapeavel, Faixa, PADROES, TokenPdf } from './pdf-mapeamento.model';
+import { IDENTIFICADORES, TipoIdentificador, detectarIdentificador } from './identificador';
 
 /**
  * Texto corrido do PDF: tokens normalizados unidos por um espaço. Quebras de linha viram espaço,
@@ -17,6 +18,18 @@ export interface ResultadoExtracao {
   /** Valor padronizado: CNPJ "00.000.000/0000-00", competência "MM/AAAA", valor "1234.56". */
   valor: string;
   tokens: Faixa;
+}
+
+/** Regex e padronização de um campo; no identificador, as do tipo (CNPJ, CPF...). */
+export interface FormatoCampo {
+  regex: RegExp;
+  padronizar(m: RegExpExecArray): string;
+}
+
+export function formatoDoCampo(tipo: CampoMapeavel, identificador: TipoIdentificador = 'cnpj'): FormatoCampo {
+  if (tipo !== 'cnpj') return { regex: PADROES[tipo], padronizar: m => padronizar(tipo, m) };
+  const formato = IDENTIFICADORES[identificador];
+  return { regex: formato.regex, padronizar: m => formato.padronizar(m[0]) };
 }
 
 export interface CampoConstruido {
@@ -95,12 +108,13 @@ export function extrairCampo(doc: DocumentoTexto, tipo: CampoMapeavel, campo: Ca
     if (!rotulo) return null;
     desde = rotulo.fim;
   }
-  const regex = new RegExp(PADROES[tipo].source, 'g');
+  const formato = formatoDoCampo(tipo, campo.identificador);
+  const regex = new RegExp(formato.regex.source, 'g');
   regex.lastIndex = desde;
   let contador = 0;
   for (let m = regex.exec(doc.texto); m; m = regex.exec(doc.texto)) {
     if (m.index - desde > DISTANCIA_MAXIMA) return null;
-    if (++contador === campo.indiceAposRotulo) return montarResultado(doc, tipo, m);
+    if (++contador === campo.indiceAposRotulo) return montarResultado(doc, formato, m);
   }
   return null;
 }
@@ -118,7 +132,10 @@ export function construirCampo(
 ): CampoConstruido {
   const inicioSelecao = doc.inicios[selecao.inicio];
   const fimSelecao = doc.fins[selecao.fim];
-  const regex = new RegExp(PADROES[tipo].source, 'g');
+  // Identificador: o tipo vem do formato do trecho selecionado (a v1 não tem IE nem IM).
+  const identificador = tipo === 'cnpj' ? (detectarIdentificador(doc.texto.slice(inicioSelecao, fimSelecao)) ?? 'cnpj') : undefined;
+  const formato = formatoDoCampo(tipo, identificador);
+  const regex = new RegExp(formato.regex.source, 'g');
   regex.lastIndex = inicioSelecao;
   const m = regex.exec(doc.texto);
   if (!m || m.index + m[0].length > fimSelecao) {
@@ -140,7 +157,7 @@ export function construirCampo(
   if (ocorrencia < 0) rotulo = '';
 
   const desde = rotulo ? ocorrencias[ocorrencia].fim : 0;
-  const contagem = new RegExp(PADROES[tipo].source, 'g');
+  const contagem = new RegExp(formato.regex.source, 'g');
   contagem.lastIndex = desde;
   let indice = 0;
   for (let c = contagem.exec(doc.texto); c && c.index <= m.index; c = contagem.exec(doc.texto)) indice++;
@@ -149,11 +166,12 @@ export function construirCampo(
     rotulo,
     ocorrenciaRotulo: ocorrencia + 1,
     indiceAposRotulo: indice,
-    exemplo: padronizar(tipo, m),
+    exemplo: formato.padronizar(m),
+    ...(identificador && identificador !== 'cnpj' ? { identificador } : {}),
   };
   return {
     campo,
-    valor: montarResultado(doc, tipo, m),
+    valor: montarResultado(doc, formato, m),
     tokensRotulo: rotulo ? faixaDeTexto(doc, ocorrencias[ocorrencia].inicio, ocorrencias[ocorrencia].fim) : undefined,
   };
 }
@@ -199,8 +217,8 @@ export function palavrasFinaisSemDigitos(texto: string): string[] {
   return /[a-z]/.test(rotulo.join('')) ? rotulo : [];
 }
 
-function montarResultado(doc: DocumentoTexto, tipo: CampoMapeavel, m: RegExpExecArray): ResultadoExtracao {
-  return { bruto: m[0], valor: padronizar(tipo, m), tokens: faixaDeTexto(doc, m.index, m.index + m[0].length) };
+function montarResultado(doc: DocumentoTexto, formato: FormatoCampo, m: RegExpExecArray): ResultadoExtracao {
+  return { bruto: m[0], valor: formato.padronizar(m), tokens: faixaDeTexto(doc, m.index, m.index + m[0].length) };
 }
 
 export function padronizar(tipo: CampoMapeavel, m: RegExpExecArray): string {

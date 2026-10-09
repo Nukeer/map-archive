@@ -1,0 +1,27 @@
+@for (b of blocos; track b.numero) {
+  <section class="bloco">
+    <h4>Bloco {{ b.numero }} <small>{{ linhas(b) }}</small></h4>
+    <table>
+      <tbody>
+        @for (linha of b.grade; track $index) {
+          <tr>
+            @for (c of linha; track $index) {
+              @if (c) {
+                <td
+                  [attr.data-celula]="c.id"
+                  [attr.data-ref]="ref(c)"
+                  [attr.data-tipo]="marcas.get(c.id)?.tipo"
+                  [attr.data-papel]="marcas.get(c.id)?.papel"
+                >{{ c.texto }}</td>
+              } @else {
+                <td></td>
+              }
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+} @empty {
+  <p>Nenhum texto nesta página.</p>
+}

@@ -1,10 +1,11 @@
 import { Component, Input, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ARQUIVOS_ACEITOS, formatoDoArquivo } from '../pdf-mapeamento/documento-texto';
 import { PdfDocumentoService } from '../pdf-mapeamento/pdf-documento.service';
 import { MapeamentoSalvo } from '../armazenamento/mapeamentos-db.service';
-import { ResultadoMatch, identificarDocumento, temScore, verificarDocumento } from './match';
+import { ResultadoMatch, identificarDocumento, temScore, usaAparencia, verificarDocumento } from './match';
 
-/** Valor do seletor para comparar com todos os mapeamentos com score (v3 e v4). */
+/** Valor do seletor para comparar com todos os mapeamentos com score (v3 em diante). */
 const AUTOMATICO = '__automatico__';
 
 /** Escolhe um mapeamento salvo, recebe outro PDF e verifica se é daquele tipo de documento. */
@@ -17,6 +18,7 @@ const AUTOMATICO = '__automatico__';
   styleUrls: ['./match-pdf.component.scss'],
 })
 export class MatchPdfComponent {
+  readonly aceitos = ARQUIVOS_ACEITOS;
   @Input({ required: true }) set mapeamentos(lista: MapeamentoSalvo[]) {
     this.lista.set(lista);
     const id = this.selecionadoId();
@@ -62,17 +64,20 @@ export class MatchPdfComponent {
     this.resultado.set(null);
     this.ranking.set([]);
     this.nomeArquivo.set(arquivo.name);
-    if (arquivo.type && arquivo.type !== 'application/pdf') {
-      this.erro.set('Selecione um arquivo PDF.');
+    if (!formatoDoArquivo(arquivo)) {
+      this.erro.set('Selecione um arquivo PDF, CSV ou TXT.');
       return;
     }
     this.verificando.set(true);
     try {
       const { tokens, dimensoes } = await this.pdf.abrir(arquivo);
+      // Desenhar a página custa; só quando algum mapeamento v5 vai ser usado.
+      const precisaAparencia = registro ? usaAparencia(registro) : this.lista().some(usaAparencia);
+      const aparencia = precisaAparencia ? await this.pdf.aparencia().catch(() => undefined) : undefined;
       if (registro) {
-        this.resultado.set(verificarDocumento(registro, tokens, dimensoes));
+        this.resultado.set(verificarDocumento(registro, tokens, dimensoes, aparencia));
       } else {
-        const ranking = identificarDocumento(this.lista(), tokens, dimensoes);
+        const ranking = identificarDocumento(this.lista(), tokens, dimensoes, aparencia);
         this.ranking.set(ranking);
         this.resultado.set(ranking[0] ?? null);
       }

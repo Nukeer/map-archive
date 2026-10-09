@@ -9,7 +9,7 @@
         Tipo de documento
         <select (change)="selecionar($any($event.target).value)">
           <option [value]="automatico" [selected]="modoAutomatico()" [disabled]="!totalComScore()">
-            Identificar automaticamente · {{ totalComScore() }} mapeamento(s) v3/v4
+            Identificar automaticamente · {{ totalComScore() }} mapeamento(s) v3+
           </option>
           @for (m of lista(); track m.id) {
             <option [value]="m.id" [selected]="m.id === selecionadoId()">
@@ -21,7 +21,7 @@
 
       <label class="botao primario" [class.desabilitado]="verificando()">
         {{ verificando() ? 'Verificando…' : 'Enviar PDF para verificar' }}
-        <input type="file" accept="application/pdf,.pdf" hidden [disabled]="verificando()" (change)="aoSelecionarArquivo($event)" />
+        <input type="file" [accept]="aceitos" hidden [disabled]="verificando()" (change)="aoSelecionarArquivo($event)" />
       </label>
     </div>
 
@@ -30,7 +30,7 @@
     }
 
     @if (ranking().length) {
-      <h3>Ranking ({{ ranking().length }} mapeamentos v3/v4)</h3>
+      <h3>Ranking ({{ ranking().length }} mapeamentos v3+)</h3>
       @if (ambiguo()) {
         <p class="aviso">Mais de um mapeamento aceitou este PDF. Adicione termos de exclusão para separar os tipos.</p>
       }
