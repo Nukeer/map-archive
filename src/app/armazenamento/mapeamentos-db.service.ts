@@ -4,13 +4,19 @@ import { MapeamentoPdfV2 } from '../pdf-mapeamento-v2/mapeamento-v2';
 import { MapeamentoPdfV3 } from '../pdf-mapeamento-v3/mapeamento-v3';
 import { MapeamentoPdfV4 } from '../pdf-mapeamento-v4/mapeamento-v4';
 import { MapeamentoPdfV5 } from '../pdf-mapeamento-v5/mapeamento-v5';
+import type { DocumentoBancada, ExecucaoBancada } from '../bancada/bancada';
 
 /** Nome do banco IndexedDB. Substituível em testes. */
 export const MAPEAMENTOS_DB_NOME = new InjectionToken<string>('MAPEAMENTOS_DB_NOME');
 
 const NOME_PADRAO = 'map-archive';
-const VERSAO_DB = 1;
+/** 1: mapeamentos; 2: + documentos e execuções da bancada de testes. */
+const VERSAO_DB = 2;
 const STORE = 'mapeamentos';
+const STORE_BANCADA = 'bancada';
+const STORE_EXECUCOES = 'execucoes';
+/** Execuções da bancada guardadas; as mais antigas são apagadas. */
+const EXECUCOES_GUARDADAS = 20;
 
 export type MapeamentoQualquer = MapeamentoPdf | MapeamentoPdfV2 | MapeamentoPdfV3 | MapeamentoPdfV4 | MapeamentoPdfV5;
 
@@ -127,6 +133,36 @@ export class MapeamentosDbService {
     await this.executar('readwrite', store => store.delete(id));
   }
 
+  // ---- Bancada de testes ----
+
+  /** Documentos da bancada, na ordem em que foram adicionados. */
+  async listarBancada(): Promise<DocumentoBancada[]> {
+    const documentos = await this.executar<DocumentoBancada[]>('readonly', store => store.getAll(), STORE_BANCADA);
+    return documentos.sort((a, b) => a.adicionadoEm.localeCompare(b.adicionadoEm) || a.nome.localeCompare(b.nome));
+  }
+
+  async salvarDocumentoBancada(documento: DocumentoBancada): Promise<void> {
+    await this.executar('readwrite', store => store.put(documento), STORE_BANCADA);
+  }
+
+  async excluirDocumentoBancada(id: string): Promise<void> {
+    await this.executar('readwrite', store => store.delete(id), STORE_BANCADA);
+  }
+
+  /** Execuções da bancada, da mais recente para a mais antiga. */
+  async listarExecucoes(): Promise<ExecucaoBancada[]> {
+    const execucoes = await this.executar<ExecucaoBancada[]>('readonly', store => store.getAll(), STORE_EXECUCOES);
+    return execucoes.sort((a, b) => b.dataHora.localeCompare(a.dataHora));
+  }
+
+  /** Guarda a execução e apaga as que passarem de EXECUCOES_GUARDADAS. */
+  async salvarExecucao(execucao: ExecucaoBancada): Promise<void> {
+    await this.executar('readwrite', store => store.put(execucao), STORE_EXECUCOES);
+    for (const antiga of (await this.listarExecucoes()).slice(EXECUCOES_GUARDADAS)) {
+      await this.executar('readwrite', store => store.delete(antiga.id), STORE_EXECUCOES);
+    }
+  }
+
   /** Fecha a conexão (usado em testes antes de apagar o banco). */
   async fechar(): Promise<void> {
     const conexao = this.conexao;
@@ -141,12 +177,25 @@ export class MapeamentosDbService {
         return;
       }
       const pedido = indexedDB.open(this.nomeBanco, VERSAO_DB);
+      // Cria só o que falta: quem já tem o banco da versão 1 mantém os mapeamentos.
       pedido.onupgradeneeded = () => {
-        const store = pedido.result.createObjectStore(STORE, { keyPath: 'id' });
-        store.createIndex('nome', 'nome');
-        store.createIndex('versao', 'versao');
+        const db = pedido.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          const store = db.createObjectStore(STORE, { keyPath: 'id' });
+          store.createIndex('nome', 'nome');
+          store.createIndex('versao', 'versao');
+        }
+        if (!db.objectStoreNames.contains(STORE_BANCADA)) db.createObjectStore(STORE_BANCADA, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(STORE_EXECUCOES)) db.createObjectStore(STORE_EXECUCOES, { keyPath: 'id' });
       };
-      pedido.onsuccess = () => resolve(pedido.result);
+      pedido.onsuccess = () => {
+        // Outra aba abrindo uma versão mais nova do banco: fecha esta conexão para não travar a atualização.
+        pedido.result.onversionchange = () => {
+          pedido.result.close();
+          this.conexao = null;
+        };
+        resolve(pedido.result);
+      };
       pedido.onerror = () => reject(pedido.error);
       pedido.onblocked = () => reject(new Error('Banco local bloqueado por outra aba aberta.'));
     });
@@ -154,11 +203,11 @@ export class MapeamentosDbService {
     return this.conexao;
   }
 
-  private async executar<T>(modo: IDBTransactionMode, operacao: (store: IDBObjectStore) => IDBRequest): Promise<T> {
+  private async executar<T>(modo: IDBTransactionMode, operacao: (store: IDBObjectStore) => IDBRequest, nomeStore = STORE): Promise<T> {
     const db = await this.abrir();
     return new Promise<T>((resolve, reject) => {
-      const transacao = db.transaction(STORE, modo);
-      const pedido = operacao(transacao.objectStore(STORE));
+      const transacao = db.transaction(nomeStore, modo);
+      const pedido = operacao(transacao.objectStore(nomeStore));
       transacao.oncomplete = () => resolve(pedido.result as T);
       transacao.onerror = () => reject(transacao.error ?? pedido.error);
       transacao.onabort = () => reject(transacao.error ?? new Error('Operação no banco local cancelada.'));

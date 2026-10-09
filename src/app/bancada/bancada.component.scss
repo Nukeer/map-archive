@@ -1,0 +1,90 @@
+:host {
+  --borda: #e2e4e9;
+  --sutil: #6b7280;
+  --primaria: #2563eb;
+  --certo: #047857;
+  --errado: #b91c1c;
+  --duvida: #b45309;
+  display: block;
+}
+
+h2 { margin-top: 32px; font-size: 1.1rem; }
+h3 { margin: 20px 0 8px; font-size: 0.95rem; }
+p { margin: 4px 0; }
+
+.barra { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+
+.botao, .botao-icone, .link {
+  font: inherit;
+  cursor: pointer;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.botao {
+  padding: 6px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  background: #fff;
+  font-size: 0.85rem;
+  &.primario { background: var(--primaria); border-color: var(--primaria); color: #fff; }
+}
+.botao-icone { border: 0; background: none; }
+.link { padding: 0; border: 0; background: none; color: var(--primaria); text-align: left; }
+
+.rolagem { overflow-x: auto; }
+
+table { border-collapse: collapse; font-size: 0.85rem; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--borda); text-align: left; vertical-align: top; }
+thead th { background: #f6f7f9; font-weight: 600; white-space: nowrap; }
+
+.placar {
+  td { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.melhor th::after { content: ' ★'; color: var(--duvida); }
+  .ruim { color: var(--errado); }
+}
+.variacao { margin-left: 6px; font-size: 0.75rem; }
+.sobe { color: var(--certo); }
+.desce { color: var(--errado); }
+.legenda { font-size: 0.8rem; }
+
+.mudancas { margin: 0; padding-left: 0; list-style: none; font-size: 0.875rem; }
+
+.documentos {
+  width: 100%;
+  select { max-width: 220px; font: inherit; }
+  select.pendente { border-color: var(--duvida); }
+}
+
+.resultado {
+  min-width: 120px;
+  small { display: block; color: var(--sutil); }
+  .icone { font-weight: 700; }
+  &[data-desfecho='acerto'], &[data-desfecho='rejeitado'] { background: #ecfdf5; .icone { color: var(--certo); } }
+  &[data-desfecho='nao-reconhecido'], &[data-desfecho='tipo-errado'], &[data-desfecho='ambiguo'], &[data-desfecho='falso-positivo'] {
+    background: #fef2f2;
+    .icone { color: var(--errado); }
+  }
+  &.duvidoso { background: #fffbeb; .icone { color: var(--duvida); } }
+}
+
+.detalhe td { background: #fafafa; }
+.gabarito { margin-bottom: 8px; }
+.campos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  label { display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; }
+  input { padding: 4px 6px; border: 1px solid var(--borda); border-radius: 4px; font: inherit; }
+}
+.versao {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid var(--borda);
+}
+
+.sutil { color: var(--sutil); }
+.aviso { color: var(--duvida); }
+.erro { color: var(--errado); }

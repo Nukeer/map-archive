@@ -7,6 +7,7 @@ import { PdfMapeamentoV3ModalComponent } from './pdf-mapeamento-v3/pdf-mapeament
 import { PdfMapeamentoV4ModalComponent } from './pdf-mapeamento-v4/pdf-mapeamento-v4-modal.component';
 import { PdfMapeamentoV5ModalComponent } from './pdf-mapeamento-v5/pdf-mapeamento-v5-modal.component';
 import { MatchPdfComponent } from './match/match-pdf.component';
+import { BancadaComponent } from './bancada/bancada.component';
 import { EntradaHistorico, MapeamentoQualquer, MapeamentoSalvo, MapeamentosDbService, versaoDoMapeamento } from './armazenamento/mapeamentos-db.service';
 import { normalizarTexto } from './pdf-mapeamento/extrator';
 import { MapeamentoPdf } from './pdf-mapeamento/pdf-mapeamento.model';
@@ -27,11 +28,12 @@ function lerResponsavel(): string {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, PdfMapeamentoModalComponent, PdfMapeamentoV2ModalComponent, PdfMapeamentoV3ModalComponent, PdfMapeamentoV4ModalComponent, PdfMapeamentoV5ModalComponent, MatchPdfComponent],
+  imports: [CommonModule, RouterOutlet, PdfMapeamentoModalComponent, PdfMapeamentoV2ModalComponent, PdfMapeamentoV3ModalComponent, PdfMapeamentoV4ModalComponent, PdfMapeamentoV5ModalComponent, MatchPdfComponent, BancadaComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
+  readonly aba = signal<'servicos' | 'bancada'>('servicos');
   readonly modalAberto = signal<Versao | null>(null);
   /** Serviço reaberto por "Mapear Documentos"; null = mapeamento novo. */
   readonly anterior = signal<MapeamentoSalvo | null>(null);

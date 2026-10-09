@@ -11,6 +11,7 @@ describe('documentos de texto (CSV e TXT)', () => {
     expect(formatoDoArquivo(new File([''], 'relatorio.csv'))).toBe('csv');
     expect(formatoDoArquivo(new File([''], 'retorno', { type: 'text/plain' }))).toBe('txt');
     expect(formatoDoArquivo(new File([''], 'guias.zip'))).toBeNull();
+    expect(formatoDoArquivo(new File([''], 'foto.png', { type: 'text/csv' }))).toBeNull();
   });
 
   it('lê UTF-8 e, se não for, Windows-1252', () => {

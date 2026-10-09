@@ -138,3 +138,21 @@ pre {
   th { background: #f6f7f9; font-weight: 600; }
   ul { margin: 4px 0; padding-left: 16px; }
 }
+
+.abas {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e2e4e9;
+
+  button {
+    padding: 8px 14px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+
+    &.ativa { border-bottom-color: #2563eb; color: #2563eb; font-weight: 600; }
+  }
+}

@@ -71,6 +71,45 @@ describe('MapeamentosDbService', () => {
     expect(await db.listar()).toEqual([]);
   });
 
+  it('guarda documentos e execuções da bancada', async () => {
+    const documento = { id: 'd1', nome: 'guia.pdf', arquivo: new Blob(['%PDF-1.4'], { type: 'application/pdf' }), gabarito: { tipo: 'DARF', campos: {} }, adicionadoEm: '2026-10-09T10:00:00Z' };
+    await db.salvarDocumentoBancada(documento);
+    const [lido] = await db.listarBancada();
+    expect(lido.gabarito.tipo).toBe('DARF');
+    expect(await lido.arquivo.text()).toBe('%PDF-1.4');
+    await db.excluirDocumentoBancada('d1');
+    expect(await db.listarBancada()).toEqual([]);
+
+    for (let i = 0; i < 22; i++) {
+      await db.salvarExecucao({ id: `e${i}`, dataHora: `2026-10-09T10:${String(i).padStart(2, '0')}:00Z`, resumos: [], desfechos: {} });
+    }
+    const execucoes = await db.listarExecucoes();
+    expect(execucoes.length).toBe(20);
+    expect(execucoes[0].id).toBe('e21');
+  });
+
+  it('atualiza um banco da versão 1 sem perder os mapeamentos', async () => {
+    await db.fechar();
+    await new Promise(resolve => {
+      const pedido = indexedDB.deleteDatabase(nomeBanco);
+      pedido.onsuccess = pedido.onerror = resolve;
+    });
+    await new Promise<void>((resolve, reject) => {
+      const pedido = indexedDB.open(nomeBanco, 1);
+      pedido.onupgradeneeded = () => {
+        const store = pedido.result.createObjectStore('mapeamentos', { keyPath: 'id' });
+        store.createIndex('nome', 'nome');
+        store.createIndex('versao', 'versao');
+        store.put({ id: 'antigo', versao: 1, nome: 'DARF', criadoEm: '', atualizadoEm: '', mapeamento: v1 });
+      };
+      pedido.onsuccess = () => (pedido.result.close(), resolve());
+      pedido.onerror = () => reject(pedido.error);
+    });
+
+    expect((await db.listar()).map(r => r.id)).toEqual(['antigo']);
+    expect(await db.listarBancada()).toEqual([]);
+  });
+
   it('registra cada conclusão no histórico, com divergências e responsável', async () => {
     const criado = await db.salvar(v2, undefined, { responsavel: 'Ana' });
     expect(criado.situacao).toBe('mapeado');

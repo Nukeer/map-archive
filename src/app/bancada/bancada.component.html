@@ -1,0 +1,198 @@
+<section class="bancada">
+  <h2>Bancada de testes</h2>
+  <p class="sutil">
+    Documentos com gabarito (o tipo certo e, se quiser, os valores certos) rodados contra todos os mapeamentos salvos. O placar
+    mostra quanto cada versão acerta nos mesmos documentos, e a comparação com a execução anterior mostra o que melhorou ou piorou.
+    Tudo fica salvo neste navegador.
+  </p>
+
+  @if (!registros().length) {
+    <p class="aviso">Salve pelo menos um mapeamento para ter o que testar.</p>
+  }
+
+  <div class="barra">
+    <label class="botao">
+      Adicionar documentos
+      <input type="file" multiple hidden [accept]="aceitos" (change)="adicionar($event)" />
+    </label>
+    <button type="button" class="botao primario" [disabled]="!!executando() || !prontos().length || !registros().length" (click)="executar()">
+      @if (executando(); as e) {
+        Executando {{ e.atual }}/{{ e.total }}…
+      } @else {
+        Executar bancada ({{ prontos().length }} documento(s) × {{ registros().length }} mapeamento(s))
+      }
+    </button>
+    <button type="button" class="botao" [disabled]="!temResultado()" (click)="baixarCsv()">Exportar CSV</button>
+  </div>
+
+  @if (erro()) {
+    <p class="erro">{{ erro() }}</p>
+  }
+  @if (documentos().length > prontos().length) {
+    <p class="aviso">{{ documentos().length - prontos().length }} documento(s) sem tipo no gabarito ficam fora da execução.</p>
+  }
+
+  @if (placar(); as p) {
+    <h3>Placar por versão <small class="sutil">execução de {{ p.execucao.dataHora | date: 'dd/MM/yyyy HH:mm' }}</small></h3>
+    <div class="rolagem">
+      <table class="placar">
+        <thead>
+          <tr>
+            <th>Versão</th>
+            <th>Avaliados</th>
+            <th>Taxa de acerto</th>
+            <th>Tipo certo</th>
+            <th>Rejeitado corretamente</th>
+            <th>Não reconhecido</th>
+            <th>Tipo errado</th>
+            <th>Ambíguo</th>
+            <th>Falso positivo</th>
+            <th>Duvidosos</th>
+            <th>Campos certos</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of p.resumos; track r.versao) {
+            <tr [class.melhor]="r.versao === p.melhor">
+              <th>v{{ r.versao }}</th>
+              <td>{{ r.avaliados }}</td>
+              <td>
+                <strong>{{ r.avaliados ? (r.taxaAcerto | percent) : '—' }}</strong>
+                @if (variacao(r, p.anterior(r.versao)); as v) {
+                  <span class="variacao" [class.sobe]="v > 0" [class.desce]="v < 0">{{ v > 0 ? '▲ +' : '▼ ' }}{{ v }} p.p.</span>
+                }
+              </td>
+              <td>{{ r.porDesfecho.acerto }}</td>
+              <td>{{ r.porDesfecho.rejeitado }}</td>
+              <td [class.ruim]="r.porDesfecho['nao-reconhecido']">{{ r.porDesfecho['nao-reconhecido'] }}</td>
+              <td [class.ruim]="r.porDesfecho['tipo-errado']">{{ r.porDesfecho['tipo-errado'] }}</td>
+              <td [class.ruim]="r.porDesfecho.ambiguo">{{ r.porDesfecho.ambiguo }}</td>
+              <td [class.ruim]="r.porDesfecho['falso-positivo']">{{ r.porDesfecho['falso-positivo'] }}</td>
+              <td>{{ r.duvidosos }}</td>
+              <td>{{ r.camposConferidos ? r.camposCertos + '/' + r.camposConferidos : '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="sutil legenda">
+      Taxa de acerto = (tipo certo + rejeitado corretamente) ÷ avaliados. Documento de um tipo que a versão não tem mapeado fica fora
+      da conta dela, a não ser que algum mapeamento o aceite (falso positivo). Campos certos só contam valores preenchidos no gabarito.
+    </p>
+
+    @if (mudancas(); as lista) {
+      <h3>Desde a execução anterior</h3>
+      @if (lista.length) {
+        <ul class="mudancas">
+          @for (m of lista; track m.documento + m.versao) {
+            <li [class.sobe]="m.melhorou === true" [class.desce]="m.melhorou === false">
+              {{ m.melhorou === true ? '▲' : m.melhorou === false ? '▼' : '•' }}
+              {{ m.nome }} · v{{ m.versao }}: {{ desfechos[m.antes].titulo }} → {{ desfechos[m.depois].titulo }}
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="sutil">Nenhum documento mudou de resultado.</p>
+      }
+    }
+  }
+
+  <h3>Documentos ({{ documentos().length }})</h3>
+  @if (!documentos().length) {
+    <p class="sutil">Adicione guias de vários tipos, inclusive de tipos que não devem ser reconhecidos, e marque o tipo certo de cada uma.</p>
+  } @else {
+    <div class="rolagem">
+      <table class="documentos">
+        <thead>
+          <tr>
+            <th>Documento</th>
+            <th>Tipo certo</th>
+            @for (v of versoes(); track v) {
+              <th>v{{ v }}</th>
+            }
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (d of documentos(); track d.id) {
+            <tr>
+              <td>
+                <button type="button" class="link" [attr.aria-expanded]="expandido() === d.id" (click)="alternar(d.id)">
+                  {{ expandido() === d.id ? '▾' : '▸' }} {{ d.nome }}
+                </button>
+                @if (falhas()[d.id]; as f) {
+                  <small class="erro">· {{ f }}</small>
+                }
+              </td>
+              <td>
+                <select [class.pendente]="d.gabarito.tipo === undefined" (change)="definirTipo(d, $any($event.target).value)">
+                  <option value="" [selected]="d.gabarito.tipo === undefined">— definir —</option>
+                  <option [value]="outroTipo" [selected]="d.gabarito.tipo === null">Outro tipo (nenhum deve aceitar)</option>
+                  @for (t of tipos(); track t) {
+                    <option [value]="t" [selected]="d.gabarito.tipo === t">{{ t }}</option>
+                  }
+                  @if (d.gabarito.tipo && !tipos().includes(d.gabarito.tipo)) {
+                    <option [value]="d.gabarito.tipo" selected>{{ d.gabarito.tipo }} (sem mapeamento)</option>
+                  }
+                </select>
+              </td>
+              @for (v of versoes(); track v) {
+                @if (avaliacao(d, v); as a) {
+                  <td class="resultado" [attr.data-desfecho]="a.desfecho" [class.duvidoso]="a.duvidoso" [title]="desfechos[a.desfecho].titulo + (a.duvidoso ? ' · duvidoso' : '')">
+                    <span class="icone">{{ icone(a) }}</span>
+                    {{ a.previsto ?? '—' }}
+                    <small>
+                      {{ a.confianca === undefined ? '' : (a.confianca | percent) }}{{ a.campos.length ? ' · ' + camposCertos(a) : '' }}
+                    </small>
+                  </td>
+                } @else {
+                  <td class="sutil">—</td>
+                }
+              }
+              <td><button type="button" class="botao-icone" aria-label="Tirar da bancada" (click)="remover(d)">✕</button></td>
+            </tr>
+            @if (expandido() === d.id) {
+              <tr class="detalhe">
+                <td [attr.colspan]="versoes().length + 3">
+                  <div class="gabarito">
+                    <strong>Valores certos</strong> <small class="sutil">opcional; conferidos com o que o mapeamento do tipo certo lê</small>
+                    <div class="campos">
+                      @for (c of campos; track c.chave) {
+                        <label>
+                          {{ c.rotulo }}
+                          <input type="text" [value]="d.gabarito.campos[c.chave] ?? ''" (change)="definirCampo(d, c.chave, $any($event.target).value)" />
+                        </label>
+                      }
+                      @if (lidos()[d.id]) {
+                        <button type="button" class="botao" (click)="usarLidos(d)">Usar valores lidos</button>
+                      }
+                    </div>
+                  </div>
+                  @for (v of versoes(); track v) {
+                    @if (avaliacao(d, v); as a) {
+                      <div class="versao">
+                        <strong>v{{ v }} · {{ desfechos[a.desfecho].titulo }}{{ a.duvidoso ? ' (duvidoso)' : '' }}</strong>
+                        <span class="sutil">
+                          @for (m of a.mapeamentos; track $index) {
+                            {{ m.nome }}: {{ m.veredito === 'corresponde' ? 'aceitou' : m.veredito === 'duvidoso' ? 'duvidoso' : 'não' }}{{
+                              m.confianca === undefined ? '' : ' ' + (m.confianca | percent)
+                            }}{{ $last ? '' : ' · ' }}
+                          }
+                        </span>
+                        @for (c of a.campos; track c.chave) {
+                          <small [class.erro]="!c.certo">
+                            {{ c.certo ? '✓' : '✗' }} {{ rotuloCampo(c.chave) }}: esperado {{ c.esperado }}, lido {{ c.lido ?? 'nada' }}
+                          </small>
+                        }
+                      </div>
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

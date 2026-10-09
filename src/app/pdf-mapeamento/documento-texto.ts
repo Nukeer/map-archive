@@ -10,9 +10,10 @@ export type FormatoDocumento = 'pdf' | 'csv' | 'txt';
 /** Para o `accept` dos campos de arquivo. */
 export const ARQUIVOS_ACEITOS = '.pdf,.csv,.txt,application/pdf,text/csv,text/plain';
 
+/** Pela extensão; o tipo (MIME) só vale para arquivo sem extensão. */
 export function formatoDoArquivo(arquivo: File): FormatoDocumento | null {
   const extensao = /\.([a-z0-9]+)$/i.exec(arquivo.name)?.[1]?.toLowerCase();
-  if (extensao === 'pdf' || extensao === 'csv' || extensao === 'txt') return extensao;
+  if (extensao) return extensao === 'pdf' || extensao === 'csv' || extensao === 'txt' ? extensao : null;
   if (arquivo.type === 'application/pdf') return 'pdf';
   if (arquivo.type === 'text/csv') return 'csv';
   if (arquivo.type === 'text/plain') return 'txt';

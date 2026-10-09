@@ -45,6 +45,39 @@ Fora do protótipo, por dependerem do Tareffa ou de decisão:
 - **CAEPF e CNO:** são conferidos só pelo formato. O DV deles tem regra própria, que não foi implementada.
 - **v1:** detecta CNPJ/CPF/CAEPF/CNO, mas não tem as etapas novas (é o modal legado de texto corrido).
 
+## Bancada de testes
+
+Aba **Bancada de testes** (`src/app/bancada/`). Mede quanto cada versão acerta nos mesmos documentos, para comparar v1 a v5 e
+para ter um número antes e depois de qualquer ajuste (limites, pesos, blocos).
+
+1. **Adicionar documentos** (PDF, CSV, TXT): guias de vários tipos, inclusive de tipos que não devem ser reconhecidos.
+2. **Gabarito:** o tipo certo de cada documento (um dos serviços salvos ou "Outro tipo") e, opcionalmente, os valores certos
+   de identificador, competência e valor. "Usar valores lidos" copia o que o mapeamento leu, para conferir e corrigir.
+3. **Executar bancada:** roda todos os mapeamentos salvos em todos os documentos com gabarito.
+
+Cada documento recebe, em cada versão, um desfecho:
+
+| Desfecho | Quando | Conta como |
+|---|---|---|
+| Tipo certo | Só mapeamentos do tipo certo aceitaram | acerto |
+| Rejeitado corretamente | Documento de "outro tipo" e ninguém aceitou | acerto |
+| Não reconhecido | A versão tem o tipo certo mapeado, mas ninguém aceitou | erro |
+| Tipo errado | Só mapeamento de outro tipo aceitou | erro |
+| Ambíguo | Mais de um tipo aceitou | erro |
+| Falso positivo | Documento de outro tipo (ou de tipo que a versão não mapeou) aceito | erro |
+| Sem mapeamento | A versão não tem o tipo do documento e não aceitou nada | fora da conta |
+
+O placar mostra, por versão:
+- a taxa de acerto, que é (tipo certo + rejeitado corretamente) ÷ avaliados;
+- a contagem de cada erro;
+- os "duvidosos" (v3+);
+- os campos certos contra o gabarito;
+- a variação em relação à execução anterior.
+
+A versão com maior taxa ganha ★. Abaixo do placar vem a lista de documentos que mudaram de desfecho
+(▲ melhorou, ▼ piorou). Documentos, gabarito e as 20 últimas execuções ficam no IndexedDB
+(versão 2 do banco, criada sem perder os mapeamentos da versão 1). O CSV exporta uma linha por documento e versão.
+
 ## Versões
 
 | | v1 · texto | v2 · planilha | v3 · assinatura + score | v4 · vários modelos | v5 · aparência + contraste |

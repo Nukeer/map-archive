@@ -10,108 +10,121 @@
     </label>
   </header>
 
-  <div class="acoes">
-    <button type="button" (click)="novo('v1')">Novo mapeamento (v1 · texto)</button>
-    <button type="button" (click)="novo('v2')">Novo mapeamento (v2 · planilha)</button>
-    <button type="button" (click)="novo('v3')">Novo mapeamento (v3 · assinatura + score)</button>
-    <button type="button" (click)="novo('v4')">Novo mapeamento (v4 · vários modelos)</button>
-    <button type="button" (click)="novo('v5')">Novo mapeamento (v5 · aparência + contraste)</button>
-  </div>
+  <nav class="abas" role="tablist">
+    <button type="button" role="tab" [class.ativa]="aba() === 'servicos'" [attr.aria-selected]="aba() === 'servicos'" (click)="aba.set('servicos')">
+      Serviços
+    </button>
+    <button type="button" role="tab" [class.ativa]="aba() === 'bancada'" [attr.aria-selected]="aba() === 'bancada'" (click)="aba.set('bancada')">
+      Bancada de testes
+    </button>
+  </nav>
 
-  @if (aviso(); as a) {
-    <div class="alerta" [class.divergencia]="a.divergencias.length" role="alert">
-      <div>
-        <p>{{ a.texto }}</p>
-        @if (a.divergencias.length) {
-          <ul>
-            @for (d of a.divergencias; track d) {
-              <li>{{ d }}</li>
-            }
-          </ul>
-        }
-      </div>
-      <button type="button" class="fechar" aria-label="Fechar aviso" (click)="aviso.set(null)">✕</button>
+  @if (aba() === 'bancada') {
+    <app-bancada [mapeamentos]="mapeamentos()" />
+  } @else {
+    <div class="acoes">
+      <button type="button" (click)="novo('v1')">Novo mapeamento (v1 · texto)</button>
+      <button type="button" (click)="novo('v2')">Novo mapeamento (v2 · planilha)</button>
+      <button type="button" (click)="novo('v3')">Novo mapeamento (v3 · assinatura + score)</button>
+      <button type="button" (click)="novo('v4')">Novo mapeamento (v4 · vários modelos)</button>
+      <button type="button" (click)="novo('v5')">Novo mapeamento (v5 · aparência + contraste)</button>
     </div>
-  }
 
-  @if (erro()) {
-    <p class="erro">{{ erro() }}</p>
-  }
-
-  <app-match-pdf [mapeamentos]="mapeamentos()" />
-
-  <h2>Serviços mapeados ({{ mapeamentos().length }})</h2>
-  @for (m of mapeamentos(); track m.id) {
-    <article class="servico">
-      <div class="linha">
-        <strong>{{ m.nome }}</strong>
-        <span class="selo">v{{ m.versao }}</span>
-        <span class="situacao" [class.divergencia]="m.situacao === 'com-divergencia'">
-          {{ m.situacao === 'com-divergencia' ? 'Com divergência no mapeamento' : 'Mapeado' }}
-        </span>
-        <span class="sutil">{{ m.atualizadoEm | date: 'dd/MM/yyyy HH:mm' }}</span>
-        <span class="botoes">
-          <button type="button" (click)="mapearDocumentos(m)">Mapear Documentos</button>
-          <button type="button" (click)="alternarHistorico(m.id)" [attr.aria-expanded]="historicoAberto() === m.id">
-            Histórico de Mapeamentos ({{ m.historico?.length ?? 0 }})
-          </button>
-          <button type="button" (click)="excluir(m)">Excluir</button>
-        </span>
+    @if (aviso(); as a) {
+      <div class="alerta" [class.divergencia]="a.divergencias.length" role="alert">
+        <div>
+          <p>{{ a.texto }}</p>
+          @if (a.divergencias.length) {
+            <ul>
+              @for (d of a.divergencias; track d) {
+                <li>{{ d }}</li>
+              }
+            </ul>
+          }
+        </div>
+        <button type="button" class="fechar" aria-label="Fechar aviso" (click)="aviso.set(null)">✕</button>
       </div>
+    }
 
-      @if (historicoAberto() === m.id) {
-        <table class="historico">
-          <thead>
-            <tr>
-              <th>Data e hora</th>
-              <th>Responsável</th>
-              <th>Ação</th>
-              <th>Termos de integração mapeados</th>
-              <th>Situação</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (h of historico(m); track $index) {
+    @if (erro()) {
+      <p class="erro">{{ erro() }}</p>
+    }
+
+    <app-match-pdf [mapeamentos]="mapeamentos()" />
+
+    <h2>Serviços mapeados ({{ mapeamentos().length }})</h2>
+    @for (m of mapeamentos(); track m.id) {
+      <article class="servico">
+        <div class="linha">
+          <strong>{{ m.nome }}</strong>
+          <span class="selo">v{{ m.versao }}</span>
+          <span class="situacao" [class.divergencia]="m.situacao === 'com-divergencia'">
+            {{ m.situacao === 'com-divergencia' ? 'Com divergência no mapeamento' : 'Mapeado' }}
+          </span>
+          <span class="sutil">{{ m.atualizadoEm | date: 'dd/MM/yyyy HH:mm' }}</span>
+          <span class="botoes">
+            <button type="button" (click)="mapearDocumentos(m)">Mapear Documentos</button>
+            <button type="button" (click)="alternarHistorico(m.id)" [attr.aria-expanded]="historicoAberto() === m.id">
+              Histórico de Mapeamentos ({{ m.historico?.length ?? 0 }})
+            </button>
+            <button type="button" (click)="excluir(m)">Excluir</button>
+          </span>
+        </div>
+
+        @if (historicoAberto() === m.id) {
+          <table class="historico">
+            <thead>
               <tr>
-                <td>{{ h.dataHora | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
-                <td>{{ h.responsavel }}</td>
-                <td>
-                  {{ h.acao === 'criado' ? 'Mapeamento criado' : 'Mapeamento alterado' }}
-                  <small class="sutil">v{{ h.versao }}{{ h.arquivo ? ' · ' + h.arquivo : '' }}</small>
-                </td>
-                <td>{{ h.termos.join(', ') }}</td>
-                <td>
-                  @if (h.divergencias.length) {
-                    <span class="erro">Com divergência</span>
-                    <ul>
-                      @for (d of h.divergencias; track d) {
-                        <li>{{ d }}</li>
+                <th>Data e hora</th>
+                <th>Responsável</th>
+                <th>Ação</th>
+                <th>Termos de integração mapeados</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (h of historico(m); track $index) {
+                <tr>
+                  <td>{{ h.dataHora | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td>{{ h.responsavel }}</td>
+                  <td>
+                    {{ h.acao === 'criado' ? 'Mapeamento criado' : 'Mapeamento alterado' }}
+                    <small class="sutil">v{{ h.versao }}{{ h.arquivo ? ' · ' + h.arquivo : '' }}</small>
+                  </td>
+                  <td>{{ h.termos.join(', ') }}</td>
+                  <td>
+                    @if (h.divergencias.length) {
+                      <span class="erro">Com divergência</span>
+                      <ul>
+                        @for (d of h.divergencias; track d) {
+                          <li>{{ d }}</li>
+                        }
+                      </ul>
+                      @if (h.gestorNotificado) {
+                        <small class="sutil">Gestor do departamento notificado</small>
                       }
-                    </ul>
-                    @if (h.gestorNotificado) {
-                      <small class="sutil">Gestor do departamento notificado</small>
+                    } @else {
+                      Sem divergência
                     }
-                  } @else {
-                    Sem divergência
-                  }
-                </td>
-              </tr>
-            } @empty {
-              <tr>
-                <td colspan="5" class="sutil">Nenhum registro: mapeamento salvo antes de existir o histórico.</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="sutil">Nenhum registro: mapeamento salvo antes de existir o histórico.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
 
-      <details>
-        <summary>Configuração salva (JSON)</summary>
-        <pre>{{ m.mapeamento | json }}</pre>
-      </details>
-    </article>
-  } @empty {
-    <p class="sutil">Nenhum mapeamento salvo.</p>
+        <details>
+          <summary>Configuração salva (JSON)</summary>
+          <pre>{{ m.mapeamento | json }}</pre>
+        </details>
+      </article>
+    } @empty {
+      <p class="sutil">Nenhum mapeamento salvo.</p>
+    }
   }
 </main>
 
