@@ -1,0 +1,326 @@
+// Cenas do tutorial. Regra de todas: o estilo base de cada elemento animado é o quadro final, e
+// a animação só conta como se chega nele. Com "reduzir movimento", as animações são desligadas
+// e a cena mostra o resultado.
+
+:host { display: block; width: 100%; height: 100%; }
+
+.cena { display: block; width: 100%; height: 100%; --dur: 5s; }
+.cena--documentos, .cena--termos { --dur: 7s; }
+.cena--conferir { --dur: 6s; }
+
+.fundo { fill: var(--fundo-suave); }
+text { font-family: system-ui, 'Segoe UI', Roboto, sans-serif; font-variant-numeric: tabular-nums; }
+.fim { text-anchor: end; }
+
+[data-tipo='cnpj'] { --cor: var(--cor-cnpj); }
+[data-tipo='competencia'] { --cor: var(--cor-competencia); }
+[data-tipo='valor'] { --cor: var(--cor-valor); }
+
+// ---- Peças comuns ----
+
+.cursor {
+  transform: translate(300px, 166px);
+  path { fill: #1a1c1c; stroke: #fff; stroke-width: 1.1; stroke-linejoin: round; }
+}
+.clique {
+  fill: none;
+  stroke: var(--primaria);
+  stroke-width: 1.5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+// O nome da animação vai direto em cada cena: o Angular renomeia os @keyframes do componente
+// e só reescreve nomes escritos em `animation`, não os passados por variável.
+@mixin roteiro($nome) {
+  .cursor { animation: #{$nome}-cursor var(--dur) infinite; }
+  .clique { animation: #{$nome}-cliques var(--dur) infinite; }
+}
+
+.marca { stroke-width: 1.2; }
+.marca--valor { fill: color-mix(in srgb, var(--cor) 25%, transparent); stroke: var(--cor); }
+.marca--rotulo { fill: none; stroke: var(--cor); stroke-dasharray: 2 1.5; }
+.marca--termo { fill: color-mix(in srgb, var(--cor-termo) 22%, transparent); stroke: var(--cor-termo); }
+
+// Aparece em `$em` (% do ciclo) e fica até o fim do ciclo.
+@mixin aparece($em) {
+  animation: aparece-#{$em} var(--dur) infinite;
+  @keyframes aparece-#{$em} {
+    0%, #{$em - 0.1}% { opacity: 0; }
+    #{$em + 3}%, 94% { opacity: 1; }
+    99%, 100% { opacity: 0; }
+  }
+}
+
+// Visível até `$em` (% do ciclo), depois some: o quadro final não o tem.
+@mixin some($em) {
+  opacity: 0;
+  animation: some-#{$em} var(--dur) infinite;
+  @keyframes some-#{$em} {
+    0%, #{$em - 0.1}% { opacity: 1; }
+    #{$em}%, 100% { opacity: 0; }
+  }
+}
+
+// ---- Documentos ----
+// 0–26% arrasta a pilha até a área · 28% solta · 31–37% as guias entram na lista ·
+// 46–50% clica no nome · 52–64% digita "DARF" · 72% "✓ 3 guias · DARF" · pausa.
+
+.soltar { fill: var(--fundo-cartao); stroke: var(--borda-forte); stroke-width: 1; stroke-dasharray: 4 3; animation: soltar-alvo var(--dur) infinite; }
+.soltar-texto { font-size: 7px; font-weight: 600; fill: var(--texto-secundario); text-anchor: middle; }
+.soltar-sub { font-size: 5px; fill: var(--sutil); text-anchor: middle; }
+.linha-caixa { fill: var(--fundo-cartao); stroke: var(--borda); stroke-width: 0.6; }
+.linha-texto { font-size: 5.6px; fill: var(--texto-secundario); }
+.selo { fill: var(--primaria-suave); }
+.selo-texto { font-size: 4.6px; fill: var(--primaria); text-anchor: middle; }
+.campo-rotulo { font-size: 5px; font-weight: 600; fill: var(--texto-secundario); }
+.campo { fill: var(--fundo-cartao); stroke: var(--borda-forte); stroke-width: 0.8; }
+.campo-digitado { font-size: 6px; fill: var(--texto); }
+.campo-cobre { fill: var(--fundo-cartao); transform: translateX(16px); animation: digitar var(--dur) infinite; }
+.campo-cursor { fill: var(--texto); opacity: 0; animation: cursor-texto var(--dur) infinite; }
+.selo-final { rect { fill: var(--sucesso); } text { font-size: 5.4px; font-weight: 600; fill: #fff; text-anchor: middle; } }
+.arquivo { fill: #fff; stroke: var(--sutil); stroke-width: 0.8; }
+.arquivo-dobra { fill: none; stroke: var(--sutil); stroke-width: 0.8; }
+
+.cena--documentos {
+  @include roteiro(documentos);
+  .pilha { opacity: 0; transform: translate(150px, 22px); animation: documentos-pilha var(--dur) infinite; }
+  .linha-1 { @include aparece(31); }
+  .linha-2 { @include aparece(34); }
+  .linha-3 { @include aparece(37); }
+  .selo-final { @include aparece(72); }
+}
+
+@keyframes documentos-cursor {
+  0% { transform: translate(262px, 166px) scale(1); opacity: 0; }
+  5% { opacity: 1; }
+  26% { transform: translate(162px, 32px) scale(0.92); }
+  28% { transform: translate(162px, 32px) scale(1); }
+  46% { transform: translate(110px, 137px) scale(1); }
+  48% { transform: translate(110px, 137px) scale(0.86); }
+  50% { transform: translate(110px, 137px) scale(1); }
+  66% { transform: translate(300px, 166px) scale(1); }
+  92% { transform: translate(300px, 166px) scale(1); opacity: 1; }
+  97%, 100% { transform: translate(300px, 166px) scale(1); opacity: 0; }
+}
+@keyframes documentos-pilha {
+  0% { transform: translate(250px, 158px); opacity: 0; }
+  5% { opacity: 1; }
+  26% { transform: translate(150px, 24px); opacity: 1; }
+  28%, 100% { transform: translate(150px, 24px); opacity: 0; }
+}
+@keyframes documentos-cliques {
+  0%, 46% { transform: scale(0.2); opacity: 0; }
+  48% { transform: scale(0.6); opacity: 0.9; }
+  56%, 100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes soltar-alvo {
+  0%, 16% { stroke: var(--borda-forte); fill: var(--fundo-cartao); }
+  20%, 28% { stroke: var(--primaria); fill: var(--primaria-suave); }
+  34%, 100% { stroke: var(--borda-forte); fill: var(--fundo-cartao); }
+}
+// Anda em 4 passos (uma letra por passo) até mostrar "DARF".
+@keyframes digitar {
+  0%, 52% { transform: translateX(0); animation-timing-function: steps(4, end); }
+  64%, 100% { transform: translateX(16px); }
+}
+@keyframes cursor-texto {
+  0%, 49.9% { opacity: 0; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(0); }
+  52% { transform: translateX(0); animation-timing-function: steps(4, end); }
+  64% { opacity: 1; transform: translateX(16px); }
+  70%, 100% { opacity: 0; transform: translateX(16px); }
+}
+
+// ---- Identificador, competência e valor ----
+// 0–26% vai até o valor · 30% clica · 34% a célula ganha a cor do campo · 40% o rótulo de
+// apoio fica tracejado · 46% a lateral mostra o que foi lido · pausa.
+
+.lido-caixa { fill: var(--fundo-cartao); stroke: var(--borda); stroke-width: 0.6; }
+.lido-cor { fill: var(--cor); }
+.lido-titulo { font-size: 6px; font-weight: 700; fill: var(--cor); }
+.lido-rotulo { font-size: 4.6px; fill: var(--sutil); }
+.lido-valor { font-size: 6.4px; font-weight: 600; fill: var(--texto); }
+.lido-onde { font-size: 4.8px; fill: var(--texto-secundario); }
+
+.cena--campo {
+  @include roteiro(campo);
+  .marca--valor { @include aparece(32); }
+  .marca--rotulo { @include aparece(40); }
+  .lido { @include aparece(46); }
+}
+
+@keyframes campo-cursor {
+  0% { transform: translate(300px, 170px) scale(1); opacity: 0; }
+  6% { opacity: 1; }
+  26% { transform: translate(var(--alvo-x), var(--alvo-y)) scale(1); }
+  30% { transform: translate(var(--alvo-x), var(--alvo-y)) scale(0.86); }
+  34% { transform: translate(var(--alvo-x), var(--alvo-y)) scale(1); }
+  56% { transform: translate(300px, 166px) scale(1); }
+  92% { transform: translate(300px, 166px) scale(1); opacity: 1; }
+  97%, 100% { transform: translate(300px, 166px) scale(1); opacity: 0; }
+}
+@keyframes campo-cliques {
+  0%, 29% { transform: scale(0.2); opacity: 0; }
+  31% { transform: scale(0.6); opacity: 0.9; }
+  40%, 100% { transform: scale(1.6); opacity: 0; }
+}
+
+// ---- Termos ----
+// Clica em "RECEITA FEDERAL" (18%) e em "DOCUMENTO DE ARRECADAÇÃO" (34%): o contador chega ao
+// mínimo. Depois clica na sugestão (54%), que entra na lista e é marcada na guia. Pausa.
+
+.painel-titulo { font-size: 6.4px; font-weight: 700; fill: var(--texto-secundario); }
+.contador { rect { fill: var(--fundo-cartao); stroke: var(--borda-forte); stroke-width: 0.6; } text { font-size: 4.8px; fill: var(--sutil); text-anchor: middle; } }
+.contador--ok { rect { fill: var(--sucesso-suave); stroke: var(--sucesso); } text { fill: var(--sucesso); font-weight: 600; } }
+.item-caixa { fill: var(--fundo-cartao); stroke: var(--borda); stroke-width: 0.6; }
+.item-cor { fill: var(--cor-termo); }
+.item-texto { font-size: 4.8px; fill: var(--texto-secundario); }
+.sugestao { rect { fill: none; stroke: var(--cor-termo); stroke-width: 0.8; } }
+.sugestao-texto { font-size: 5.4px; font-weight: 600; fill: var(--texto-secundario); }
+.sugestao-sub { font-size: 4.4px; fill: var(--sutil); }
+
+.cena--termos {
+  @include roteiro(termos);
+  .termo-1, .item-1 { @include aparece(19); }
+  .termo-2, .item-2 { @include aparece(35); }
+  .termo-3, .item-3 { @include aparece(57); }
+  .contador-0 { @include some(19); }
+  .contador-1 { opacity: 0; animation: termos-contador-1 var(--dur) infinite; }
+  .contador-2 { opacity: 0; animation: termos-contador-2 var(--dur) infinite; }
+  .contador-3 { @include aparece(57); }
+  .sugestao { @include some(56); }
+}
+
+@keyframes termos-cursor {
+  0% { transform: translate(300px, 170px) scale(1); opacity: 0; }
+  5% { opacity: 1; }
+  16% { transform: translate(40px, 19px) scale(1); }
+  18% { transform: translate(40px, 19px) scale(0.86); }
+  20% { transform: translate(40px, 19px) scale(1); }
+  32% { transform: translate(46px, 28px) scale(1); }
+  34% { transform: translate(46px, 28px) scale(0.86); }
+  36% { transform: translate(46px, 28px) scale(1); }
+  52% { transform: translate(236px, 115px) scale(1); }
+  54% { transform: translate(236px, 115px) scale(0.86); }
+  56% { transform: translate(236px, 115px) scale(1); }
+  70% { transform: translate(300px, 166px) scale(1); }
+  92% { transform: translate(300px, 166px) scale(1); opacity: 1; }
+  97%, 100% { transform: translate(300px, 166px) scale(1); opacity: 0; }
+}
+@keyframes termos-cliques {
+  0%, 16% { transform: scale(0.2); opacity: 0; }
+  18% { transform: scale(0.6); opacity: 0.9; }
+  24%, 32% { transform: scale(1.6); opacity: 0; }
+  32.1% { transform: scale(0.2); opacity: 0; }
+  34% { transform: scale(0.6); opacity: 0.9; }
+  40%, 52% { transform: scale(1.6); opacity: 0; }
+  52.1% { transform: scale(0.2); opacity: 0; }
+  54% { transform: scale(0.6); opacity: 0.9; }
+  60%, 100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes termos-contador-2 {
+  0%, 34.9% { opacity: 0; }
+  35%, 56.9% { opacity: 1; }
+  57%, 100% { opacity: 0; }
+}
+@keyframes termos-contador-1 {
+  0%, 18.9% { opacity: 0; }
+  19%, 34.9% { opacity: 1; }
+  35%, 100% { opacity: 0; }
+}
+
+// ---- Conferir ----
+// 0–14% vai ao botão · 16% clica · 17–40% verificando · 42–54% as guias entram, uma a uma ·
+// 60% "3 de 3 guias lidas" · pausa.
+
+.botao-cena { fill: var(--primaria); }
+.botao-cena-texto { font-size: 6px; font-weight: 600; fill: #fff; text-anchor: middle; }
+.girando { fill: none; stroke: #fff; stroke-width: 1.2; stroke-dasharray: 14 8; transform-box: fill-box; transform-origin: center; animation: girar 1s linear infinite; }
+.tabela { fill: var(--fundo-cartao); stroke: var(--borda); stroke-width: 0.6; }
+.cabeca { font-size: 4.6px; font-weight: 700; letter-spacing: 0.04em; fill: var(--sutil); }
+.cabeca--cnpj { fill: var(--cor-cnpj); }
+.cabeca--competencia { fill: var(--cor-competencia); }
+.cabeca--valor { fill: var(--cor-valor); }
+.regua { fill: var(--borda); }
+.celula-texto { font-size: 5.2px; fill: var(--texto-secundario); }
+.certo { font-size: 6px; font-weight: 700; fill: var(--sucesso); }
+.resultado-ok { font-size: 6px; font-weight: 600; fill: var(--sucesso); }
+
+.cena--conferir {
+  @include roteiro(conferir);
+  .estado-inicio { @include some(17); }
+  .estado-lendo { opacity: 0; animation: conferir-lendo var(--dur) infinite; }
+  .estado-fim { @include aparece(41); }
+  .conferida-1 { @include aparece(42); }
+  .conferida-2 { @include aparece(48); }
+  .conferida-3 { @include aparece(54); }
+  .resultado-ok { @include aparece(60); }
+}
+
+@keyframes conferir-cursor {
+  0% { transform: translate(290px, 170px) scale(1); opacity: 0; }
+  5% { opacity: 1; }
+  14% { transform: translate(152px, 21px) scale(1); }
+  16% { transform: translate(152px, 21px) scale(0.86); }
+  18% { transform: translate(152px, 21px) scale(1); }
+  34% { transform: translate(300px, 166px) scale(1); }
+  92% { transform: translate(300px, 166px) scale(1); opacity: 1; }
+  97%, 100% { transform: translate(300px, 166px) scale(1); opacity: 0; }
+}
+@keyframes conferir-cliques {
+  0%, 14% { transform: scale(0.2); opacity: 0; }
+  16% { transform: scale(0.6); opacity: 0.9; }
+  24%, 100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes conferir-lendo {
+  0%, 16.9% { opacity: 0; }
+  17%, 40.9% { opacity: 1; }
+  41%, 100% { opacity: 0; }
+}
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
+// ---- Concluir ----
+// 0–26% vai ao botão · 28% clica · 34% "concluído" e registrado no histórico · pausa.
+
+.resumo { fill: var(--fundo-cartao); stroke: var(--borda); stroke-width: 0.6; }
+.resumo-rotulo { font-size: 5.4px; fill: var(--sutil); }
+.resumo-valor { font-size: 5.6px; font-weight: 600; fill: var(--texto); }
+.concluir { fill: var(--primaria); }
+.concluir-texto { font-size: 6.4px; font-weight: 700; fill: #fff; text-anchor: middle; }
+.concluido-ok { font-size: 7px; font-weight: 700; fill: var(--sucesso); text-anchor: middle; }
+.concluido-sub { font-size: 5.2px; fill: var(--sutil); text-anchor: middle; }
+
+.cena--concluir {
+  @include roteiro(concluir);
+  .concluir { animation: concluir-aperta var(--dur) infinite; }
+  .concluido { @include aparece(34); }
+}
+
+@keyframes concluir-cursor {
+  0% { transform: translate(290px, 170px) scale(1); opacity: 0; }
+  5% { opacity: 1; }
+  26% { transform: translate(150px, 92px) scale(1); }
+  28% { transform: translate(150px, 92px) scale(0.86); }
+  30% { transform: translate(150px, 92px) scale(1); }
+  50% { transform: translate(300px, 166px) scale(1); }
+  92% { transform: translate(300px, 166px) scale(1); opacity: 1; }
+  97%, 100% { transform: translate(300px, 166px) scale(1); opacity: 0; }
+}
+@keyframes concluir-cliques {
+  0%, 26% { transform: scale(0.2); opacity: 0; }
+  28% { transform: scale(0.6); opacity: 0.9; }
+  36%, 100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes concluir-aperta {
+  0%, 27.9% { opacity: 1; }
+  28%, 31% { opacity: 0.75; }
+  32%, 100% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cena * { animation: none !important; }
+}

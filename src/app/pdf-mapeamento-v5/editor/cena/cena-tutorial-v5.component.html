@@ -1,0 +1,166 @@
+<svg [class]="'cena cena--' + etapa() + (marcacao() ? ' cena--campo' : '')" viewBox="0 0 320 180" aria-hidden="true">
+  <svg:rect class="fundo" x="0" y="0" width="320" height="180"></svg:rect>
+
+  @switch (etapa()) {
+    <!-- Documentos: arrasta três guias para a área, elas entram na lista e o nome é digitado. -->
+    @case ('documentos') {
+      <svg:rect class="soltar" x="20" y="10" width="280" height="50" rx="6"></svg:rect>
+      <svg:text class="soltar-texto" x="160" y="33">⇪ Arraste as guias para cá</svg:text>
+      <svg:text class="soltar-sub" x="160" y="43">PDF, CSV ou TXT · de 2 a 5 guias</svg:text>
+
+      @for (nome of arquivos; track nome; let i = $index) {
+        <svg:g [class]="'linha linha-' + (i + 1)">
+          <svg:rect class="linha-caixa" x="20" [attr.y]="68 + i * 14" width="280" height="12" rx="3"></svg:rect>
+          <svg:text class="linha-texto" x="26" [attr.y]="76 + i * 14">{{ i === 0 ? '★ ' : '' }}{{ nome }}</svg:text>
+          @if (i === 0) {
+            <svg:rect class="selo" x="256" [attr.y]="70 + i * 14" width="38" height="8" rx="4"></svg:rect>
+            <svg:text class="selo-texto" x="275" [attr.y]="75.6 + i * 14">principal</svg:text>
+          }
+        </svg:g>
+      }
+
+      <svg:text class="campo-rotulo" x="20" y="124">Serviço (tipo de documento)</svg:text>
+      <svg:rect class="campo" x="20" y="128" width="160" height="16" rx="3"></svg:rect>
+      <svg:text class="campo-digitado" x="25" y="139">DARF</svg:text>
+      <!-- Cobre o nome e anda para a direita, mostrando letra por letra. -->
+      <!-- Anda 16 (as 4 letras): termina dentro do campo, que vai até 180. -->
+      <svg:rect class="campo-cobre" x="24" y="131" width="140" height="10"></svg:rect>
+      <svg:rect class="campo-cursor" x="24" y="131.5" width="0.7" height="9"></svg:rect>
+
+      <svg:g class="selo-final">
+        <svg:rect x="196" y="130" width="104" height="12" rx="6"></svg:rect>
+        <svg:text x="248" y="138">✓ 3 guias · DARF</svg:text>
+      </svg:g>
+
+      <svg:g class="pilha">
+        @for (i of [2, 1, 0]; track i) {
+          <svg:g [attr.transform]="'translate(' + i * 4 + ', ' + i * -3 + ')'">
+            <svg:path class="arquivo" d="M0 0 H10 L14 4 V18 H0 Z"></svg:path>
+            <svg:path class="arquivo-dobra" d="M10 0 V4 H14"></svg:path>
+          </svg:g>
+        }
+      </svg:g>
+    }
+
+    <!-- Identificador, competência e valor: clica no valor, a célula ganha a cor do campo. -->
+    @case ('identificador') {
+      <ng-container *ngTemplateOutlet="campo" />
+    }
+    @case ('competencia') {
+      <ng-container *ngTemplateOutlet="campo" />
+    }
+    @case ('valor') {
+      <ng-container *ngTemplateOutlet="campo" />
+    }
+
+    <!-- Termos: dois cliques em textos fixos e um na sugestão. -->
+    @case ('termos') {
+      <svg:g [attr.transform]="guiaTermos">
+        <svg:g appMiniGuia></svg:g>
+        <svg:rect class="marca marca--termo termo-1" [attr.x]="celulas.titulo.x" [attr.y]="celulas.titulo.y" [attr.width]="celulas.titulo.w" [attr.height]="celulas.titulo.h" rx="1.5"></svg:rect>
+        <svg:rect class="marca marca--termo termo-2" [attr.x]="celulas.documento.x" [attr.y]="celulas.documento.y" [attr.width]="celulas.documento.w" [attr.height]="celulas.documento.h" rx="1.5"></svg:rect>
+        <svg:rect class="marca marca--termo termo-3" [attr.x]="celulas.codigoReceita.x" [attr.y]="celulas.codigoReceita.y" [attr.width]="celulas.codigoReceita.w" [attr.height]="celulas.codigoReceita.h" rx="1.5"></svg:rect>
+      </svg:g>
+
+      <svg:text class="painel-titulo" x="212" y="18">Termos</svg:text>
+      <svg:g class="contador contador-0">
+        <svg:rect x="270" y="10" width="42" height="11" rx="5.5"></svg:rect>
+        <svg:text x="291" y="17.6">0 de 2 mín.</svg:text>
+      </svg:g>
+      <svg:g class="contador contador-1">
+        <svg:rect x="270" y="10" width="42" height="11" rx="5.5"></svg:rect>
+        <svg:text x="291" y="17.6">1 de 2 mín.</svg:text>
+      </svg:g>
+      <svg:g class="contador contador--ok contador-2">
+        <svg:rect x="270" y="10" width="42" height="11" rx="5.5"></svg:rect>
+        <svg:text x="291" y="17.6">✓ 2 de 2 mín.</svg:text>
+      </svg:g>
+      <svg:g class="contador contador--ok contador-3">
+        <svg:rect x="270" y="10" width="42" height="11" rx="5.5"></svg:rect>
+        <svg:text x="291" y="17.6">✓ 3 termos</svg:text>
+      </svg:g>
+
+      @for (termo of ['RECEITA FEDERAL', 'DOCUMENTO DE ARRECADAÇÃO', 'Código da Receita']; track termo; let i = $index) {
+        <svg:g [class]="'item item-' + (i + 1)">
+          <svg:rect class="item-caixa" x="212" [attr.y]="28 + i * 15" width="100" height="12" rx="2.5"></svg:rect>
+          <svg:rect class="item-cor" x="212" [attr.y]="28 + i * 15" width="2.5" height="12" rx="1"></svg:rect>
+          <svg:text class="item-texto" x="218" [attr.y]="36 + i * 15">{{ termo }}</svg:text>
+        </svg:g>
+      }
+
+      <svg:text class="painel-titulo" x="212" y="100">Sugestões</svg:text>
+      <svg:g class="sugestao">
+        <svg:rect x="212" y="105" width="100" height="22" rx="4"></svg:rect>
+        <svg:text class="sugestao-texto" x="218" y="114">+ Código da Receita</svg:text>
+        <svg:text class="sugestao-sub" x="218" y="122">só este tipo</svg:text>
+      </svg:g>
+    }
+
+    <!-- Conferir: clica em Verificar e as guias entram na tabela, uma a uma. -->
+    @case ('conferir') {
+      <svg:rect class="botao-cena" x="110" y="10" width="100" height="18" rx="9"></svg:rect>
+      <svg:text class="botao-cena-texto estado-inicio" x="160" y="21.6">▶ Verificar</svg:text>
+      <svg:g class="estado-lendo">
+        <svg:circle class="girando" cx="128" cy="19" r="3.4"></svg:circle>
+        <svg:text class="botao-cena-texto" x="164" y="21.6">Verificando…</svg:text>
+      </svg:g>
+      <svg:text class="botao-cena-texto estado-fim" x="160" y="21.6">↻ Verificar de novo</svg:text>
+
+      <svg:rect class="tabela" x="14" y="36" width="292" height="78" rx="4"></svg:rect>
+      <svg:text class="cabeca" x="22" y="48">GUIA</svg:text>
+      <svg:text class="cabeca cabeca--cnpj" x="84" y="48">CPF</svg:text>
+      <svg:text class="cabeca cabeca--competencia" x="160" y="48">COMPETÊNCIA</svg:text>
+      <svg:text class="cabeca cabeca--valor fim" x="282" y="48">VALOR</svg:text>
+      <svg:rect class="regua" x="20" y="52" width="280" height="0.5"></svg:rect>
+      @for (g of conferidas; track g.guia; let i = $index) {
+        <svg:g [class]="'conferida conferida-' + (i + 1)">
+          <svg:text class="celula-texto" x="22" [attr.y]="66 + i * 17">{{ g.guia }}</svg:text>
+          <svg:text class="celula-texto" x="84" [attr.y]="66 + i * 17">{{ g.id }}</svg:text>
+          <svg:text class="celula-texto" x="160" [attr.y]="66 + i * 17">{{ g.competencia }}</svg:text>
+          <svg:text class="celula-texto fim" x="282" [attr.y]="66 + i * 17">{{ g.valor }}</svg:text>
+          <svg:text class="certo" x="292" [attr.y]="66 + i * 17">✓</svg:text>
+        </svg:g>
+      }
+      <svg:text class="resultado-ok" x="14" y="132">✓ 3 de 3 guias lidas corretamente · nenhuma divergência</svg:text>
+    }
+
+    <!-- Concluir: confere o resumo e conclui; fica no histórico. -->
+    @case ('concluir') {
+      <svg:rect class="resumo" x="70" y="10" width="180" height="58" rx="4"></svg:rect>
+      @for (linha of [['Serviço', 'DARF'], ['Guias', '3'], ['Identificador', 'CPF'], ['Termos', '3']]; track linha[0]; let i = $index) {
+        <svg:text class="resumo-rotulo" x="80" [attr.y]="24 + i * 12">{{ linha[0] }}</svg:text>
+        <svg:text class="resumo-valor" x="140" [attr.y]="24 + i * 12">{{ linha[1] }}</svg:text>
+      }
+      <svg:rect class="concluir" x="70" y="80" width="180" height="20" rx="10"></svg:rect>
+      <svg:text class="concluir-texto" x="160" y="92.4">Concluir Mapeamento</svg:text>
+      <svg:g class="concluido">
+        <svg:text class="concluido-ok" x="160" y="124">✓ Mapeamento de DARF concluído</svg:text>
+        <svg:text class="concluido-sub" x="160" y="138">Registrado no histórico de mapeamentos do serviço</svg:text>
+      </svg:g>
+    }
+  }
+
+  <svg:g class="cursor" [style.--alvo-x]="alvo() ? alvo()!.x + 'px' : null" [style.--alvo-y]="alvo() ? alvo()!.y + 'px' : null">
+    <svg:circle class="clique" cx="0" cy="0" r="7"></svg:circle>
+    <svg:path d="M0 0 L0 15 L3.8 11.4 L6.6 17.6 L9.4 16.4 L6.6 10.4 L11.8 10.4 Z"></svg:path>
+  </svg:g>
+</svg>
+
+<ng-template #campo>
+  @if (marcacao(); as m) {
+    <svg:g [attr.transform]="guiaCampo" [attr.data-tipo]="m.tipo">
+      <svg:g appMiniGuia></svg:g>
+      <svg:rect class="marca marca--rotulo" [attr.x]="m.rotulo.x - 1" [attr.y]="m.rotulo.y - 1" [attr.width]="m.rotulo.w + 2" [attr.height]="m.rotulo.h + 2" rx="1.5"></svg:rect>
+      <svg:rect class="marca marca--valor" [attr.x]="m.celula.x - 1" [attr.y]="m.celula.y - 1" [attr.width]="m.celula.w + 2" [attr.height]="m.celula.h + 2" rx="1.5"></svg:rect>
+    </svg:g>
+    <svg:g class="lido" [attr.data-tipo]="m.tipo">
+      <svg:rect class="lido-caixa" x="228" y="42" width="86" height="54" rx="4"></svg:rect>
+      <svg:rect class="lido-cor" x="228" y="42" width="3" height="54" rx="1.5"></svg:rect>
+      <svg:text class="lido-titulo" x="236" y="53">✓ {{ m.titulo }}</svg:text>
+      <svg:text class="lido-rotulo" x="236" y="64">Valor lido</svg:text>
+      <svg:text class="lido-valor" x="236" y="73">{{ m.lido }}</svg:text>
+      <svg:text class="lido-rotulo" x="236" y="85">Onde</svg:text>
+      <svg:text class="lido-onde" x="260" y="85">{{ m.onde }}</svg:text>
+    </svg:g>
+  }
+</ng-template>

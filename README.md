@@ -16,7 +16,7 @@ pela versão salva (`versao` no registro).
 
 ## Fluxo do assistente "Mapear Documentos"
 
-Segue as premissas do Tareffa. O assistente é o modal da v2, reaproveitado pela v3, v4 e v5.
+Segue as premissas do Tareffa. Na v2, v3 e v4 o assistente é o modal da v2; a v5 tem tela própria, descrita em [Tela da v5](#tela-da-v5).
 
 | Premissa | Como está no protótipo |
 |---|---|
@@ -178,7 +178,8 @@ Pega PDFs com os mesmos textos em outra disposição, que a v3 aceitaria.
 
 ### v5 · aparência + contraste
 
-Mesmo fluxo da v4 (2 a 5 modelos, campos e termos no 1º). Ao carregar, cada modelo também é
+Mesmo princípio da v4 (2 a 5 modelos, campos e termos marcados no 1º), numa tela própria (ver
+[Tela da v5](#tela-da-v5)). Ao carregar, cada modelo também é
 **desenhado** (`PdfDocumentoService.aparencia()`, `aparencia.ts`), e a assinatura ganha
 (`mapeamento-v5.ts`):
 
@@ -212,6 +213,32 @@ Se o PDF não puder ser desenhado, os sinais ficam informativos e vale o score d
 limites ficam no topo de `mapeamento-v5.ts` e `aparencia.ts`. Por enquanto foram calibrados só
 com formulários sintéticos dos testes, onde o mesmo formulário com outros dados dá cerca de 97%
 das bordas em comum e um formulário diferente, cerca de 18%. Confira com guias reais.
+
+### Tela da v5
+
+`pdf-mapeamento-v5/editor/`, no formato da tela de validação de layouts do portal de agentes:
+
+- **Tela inteira**, com o documento à esquerda e as etapas à direita: Documentos → Identificador → Competência → Termos → Valor →
+  Conferir → Concluir. Sem guias ainda, o centro é uma área para soltar os arquivos (ou clicar e escolher).
+- **Etapas em lista vertical:** a atual aberta, com instrução e "?" (tutorial); as feitas com ✓ e um resumo ("CPF
+  529.982.247-25", "2 termos"). Dá para voltar a qualquer etapa já liberada.
+- **Rodapé:** "Próximo: Competência" pulsa quando a etapa está feita. Bloqueado, ele diz o que falta ("Marque mais 1 termo
+  para continuar.", "Você mudou o mapeamento. Verifique de novo para continuar.").
+- **Guias no topo do documento:** a principal (★) é onde se marca. Abrir outra guia mostra onde o mapeamento leu nela e não
+  deixa marcar. "marcar nesta" troca a principal e leva as marcações junto.
+- **Termos sugeridos na própria etapa Termos**, com um clique ("+ Código da Receita · só este tipo"). As exclusões sugeridas
+  ficam no Concluir, em "Evitar confusão com outros tipos".
+- **Conferir:** "Verificar" aplica o mapeamento em todas as guias e abre no centro a **Conferência**, uma tabela guia ×
+  campo com o que foi lido e o que aprendi comparando as guias. A guia que falhou ganha "!" e vira divergência.
+- **Visualizador:** abas Documento / Blocos / Planilha, fichas de página (com ponto onde há marcações), zoom e "Ajustar" à
+  largura (padrão), contorno dos blocos, "A página continua abaixo", **desfazer/refazer** (Ctrl+Z, Ctrl+Shift+Z).
+- **Tutorial:** introdução na primeira vez e um cartão ao entrar em cada etapa, com "Pular tutorial" e "Não mostrar de novo"
+  (guardado no navegador). Cada cartão tem uma animação em SVG (`editor/cena/`): um cursor faz a etapa sobre uma guia de
+  exemplo (arrasta as guias, clica no CPF, marca os termos, verifica, conclui). Só CSS, sem bibliotecas; com "reduzir
+  movimento" a cena mostra direto o resultado.
+- **Saída:** "Voltar aos serviços" e ✕ perguntam antes de descartar o que foi marcado. Em telas estreitas (< 1024 px), pede uma tela maior.
+
+As regras ficam em `editor-v5.state.ts` (sem tela, testado em `editor-v5.state.spec.ts`); a tela só exibe e repassa cliques.
 
 ## Ideias para a v6
 

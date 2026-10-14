@@ -1,0 +1,121 @@
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.fundo {
+  position: absolute;
+  inset: 0;
+  background: rgb(15 23 42 / 45%);
+}
+
+.cartao {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 24px;
+  border-radius: 14px;
+  background: var(--fundo-cartao);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 25%);
+  animation: entrar 0.2s ease-out;
+}
+
+// Com animação, o cartão é mais largo para a cena caber em 16:9.
+.cartao.com-cena { width: min(640px, 100%); }
+.cena {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  background: var(--fundo-suave);
+}
+
+h2 { margin: 0; font-size: 1.2rem; }
+p { margin: 0; }
+.sobretitulo { color: var(--primaria); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.texto { color: var(--texto-secundario); line-height: 1.45; }
+.secao { margin-top: 6px; font-weight: 600; font-size: 14px; }
+
+[data-tipo='cnpj'] { --cor: var(--cor-cnpj); }
+[data-tipo='competencia'] { --cor: var(--cor-competencia); }
+[data-tipo='valor'] { --cor: var(--cor-valor); }
+[data-tipo='termo'] { --cor: var(--cor-termo); }
+
+.campos {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 6px 10px;
+    border-left: 4px solid var(--cor);
+    border-radius: 6px;
+    background: var(--fundo-suave);
+    font-size: 14px;
+  }
+  span { color: var(--sutil); font-size: 13px; }
+}
+
+.ciclo {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  li { display: flex; align-items: center; gap: 8px; }
+  .passo {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--primaria);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
+
+.acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.nunca { display: flex; align-items: center; gap: 6px; margin-right: auto; font-size: 13px; color: var(--texto-secundario); }
+
+.botao {
+  padding: 8px 14px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 8px;
+  background: var(--fundo-cartao);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  &.primario { border-color: var(--primaria); background: var(--primaria); color: #fff; font-weight: 600; }
+}
+
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cartao { animation: none; }
+}

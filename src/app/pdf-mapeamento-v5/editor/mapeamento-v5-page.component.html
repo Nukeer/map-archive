@@ -1,0 +1,163 @@
+<section class="tela" role="dialog" aria-modal="true" aria-labelledby="titulo-v5">
+  <header class="topo">
+    <button type="button" class="botao-texto" (click)="sair()">← Voltar aos serviços</button>
+    <div class="titulo">
+      <h1 id="titulo-v5">Mapear Documentos</h1>
+      <span class="selo">v5 · Experimental</span>
+      @if (state.nome()) {
+        <span class="servico" [title]="state.nome()">{{ state.nome() }}</span>
+      }
+    </div>
+    <button type="button" class="fechar" aria-label="Fechar e voltar aos serviços" title="Fechar e voltar aos serviços" (click)="sair()">✕</button>
+  </header>
+
+  <p class="tela-pequena">Para mapear documentos, use uma tela maior.</p>
+
+  <div class="corpo">
+    <main
+      class="coluna centro"
+      aria-label="Documento"
+      [class.arrastando]="arrastando()"
+      (dragover)="aoArrastarPorCima($event)"
+      (dragleave)="arrastando.set(false)"
+      (drop)="aoSoltar($event)"
+    >
+      @if (state.validos().length) {
+        <div class="guias" role="group" aria-label="Guias">
+          <span class="rotulo-guias">Guias:</span>
+          @for (m of state.validos(); track m.nome; let i = $index) {
+            <button
+              type="button"
+              class="guia"
+              [class.principal]="i === 0"
+              [class.ativa]="state.centro() === 'documento' && state.exibido() === i"
+              [class.falha]="guiasComFalha().has(m.nome)"
+              [attr.aria-pressed]="state.centro() === 'documento' && state.exibido() === i"
+              [title]="(i === 0 ? 'Guia principal (onde se marca): ' : 'Guia de conferência: ') + m.nome"
+              (click)="mostrar(i)"
+            >
+              @if (i === 0) {
+                <span aria-hidden="true">★</span>
+              }
+              <span class="guia-nome">{{ m.nome }}</span>
+              @if (guiasComFalha().has(m.nome)) {
+                <span class="falha-marca" aria-label="o mapeamento falhou nesta guia">!</span>
+              }
+            </button>
+          }
+          @if (state.base()) {
+            <button
+              type="button"
+              class="guia conferencia"
+              [class.ativa]="state.centro() === 'conferencia'"
+              [attr.aria-pressed]="state.centro() === 'conferencia'"
+              (click)="state.centro.set('conferencia')"
+            >
+              Conferência{{ state.testes().length ? ' (' + (state.testes().length - guiasComFalha().size) + '/' + state.testes().length + ')' : '' }}
+            </button>
+          }
+        </div>
+
+        @if (state.modeloExibido(); as m) {
+          <!-- Fica montado (escondido) na Conferência para não perder a página desenhada. -->
+          <app-visualizador-documento
+            [hidden]="state.centro() === 'conferencia'"
+            [arquivo]="m.arquivo"
+            [planilha]="m.planilha"
+            [marcas]="state.marcas()"
+            [selecionavel]="podeMarcar()"
+            [tipo]="state.atual().marca ?? 'termo'"
+            [foco]="state.foco()"
+            [aviso]="avisoVisualizador()"
+            [podeDesfazer]="state.podeDesfazer()"
+            [podeRefazer]="state.podeRefazer()"
+            (selecionar)="state.aplicarSelecao($event)"
+            (desfazer)="state.desfazer()"
+            (refazer)="state.refazer()"
+          />
+        }
+
+        @if (state.centro() === 'conferencia') {
+          <div class="conferencia">
+            <p class="sutil">O mapeamento aplicado em cada guia, com o que foi marcado agora.</p>
+            <div class="tabela">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Guia</th>
+                    @for (c of campos; track c.chave) {
+                      <th>{{ rotuloCampo(c.chave) }}</th>
+                    }
+                    <th>Termos</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (t of state.testes(); track t.nome; let i = $index) {
+                    <tr [class.falha]="!t.ok">
+                      <td class="guia-celula" [title]="t.nome">{{ i === 0 ? '★ ' : '' }}{{ t.nome }}</td>
+                      @for (c of t.campos; track c.chave) {
+                        <td [class.invalido]="!c.valido">{{ c.valido ? '' : '✗ ' }}{{ formatar(c.chave, c.valor) }}</td>
+                      }
+                      <td [class.invalido]="t.termosAusentes.length">
+                        {{ t.termosAusentes.length ? '✗ faltam: ' + t.termosAusentes.join(', ') : 'todos' }}
+                      </td>
+                      <td><button type="button" class="link" (click)="mostrarPorNome(t.nome)">Ver na guia</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (state.gerado(); as g) {
+              <div class="aparencia">
+                <strong>O que aprendi comparando as guias</strong>
+                <ul>
+                  <li>{{ g.assinatura.rotulos.length }} textos fixos em todas as guias; {{ g.assinatura.rotulosVariaveis.length }} mudam (dados).</li>
+                  <li>
+                    Código de barras:
+                    @if (g.assinatura.codigoBarras; as c) {
+                      {{ c.tipo === 'boleto' ? 'boleto do banco ' + c.emissor : 'arrecadação, órgão ' + c.emissor }}
+                    } @else {
+                      nenhum comum a todas
+                    }
+                  </li>
+                  <li>
+                    Aparência: {{ g.assinatura.visual ? 'desenho da página aprendido' : 'desenho desativado' }} ·
+                    {{ g.assinatura.fontes.length ? g.assinatura.fontes.join(', ') : 'sem fontes comuns' }}{{ g.assinatura.produtor ? ' · gerado por ' + g.assinatura.produtor : '' }}
+                  </li>
+                </ul>
+                @for (a of g.avisos; track a) {
+                  <p class="alerta">{{ a }}</p>
+                }
+              </div>
+            }
+          </div>
+        }
+      } @else {
+        <label class="soltar" [class.arrastando]="arrastando()">
+          <input type="file" multiple hidden [accept]="aceitos" [disabled]="state.carregando()" (change)="aoEscolher($event)" />
+          <span class="icone-soltar" aria-hidden="true">⇪</span>
+          <strong>Escolha de 2 a 5 guias do mesmo tipo</strong>
+          <span>Arraste os arquivos para cá ou clique para escolher (PDF, CSV ou TXT).</span>
+          <span class="sutil">De preferência de empresas e meses diferentes: assim eu separo o que é fixo do que muda.</span>
+          @if (state.erroArquivos()) {
+            <span class="erro">{{ state.erroArquivos() }}</span>
+          }
+        </label>
+      }
+    </main>
+
+    <aside class="coluna lateral" aria-label="Etapas">
+      <p class="coluna-titulo">Etapas</p>
+      <app-passos-v5 (adicionar)="aoEscolher($event)" (concluir)="concluir()" (mostrarGuia)="mostrarPorNome($event)" />
+    </aside>
+  </div>
+
+  @if (state.carregando()) {
+    <div class="carregando" role="status">
+      <div class="pontos" aria-hidden="true"><span></span><span></span><span></span></div>
+      <p>Lendo as guias e desenhando cada página…</p>
+    </div>
+  }
+</section>

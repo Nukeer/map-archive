@@ -1,0 +1,241 @@
+:host {
+  --primaria: #2563eb;
+  --primaria-suave: #e8effd;
+  --sucesso: #047857;
+  --sucesso-suave: #ecfdf5;
+  --alerta: #b45309;
+  --alerta-suave: #fffbeb;
+  --cor-erro: #dc2626;
+  --cor-cnpj: #2563eb;
+  --cor-competencia: #7c3aed;
+  --cor-valor: #059669;
+  --cor-termo: #ea580c;
+  --texto: #1f2328;
+  --texto-secundario: #374151;
+  --sutil: #6b7280;
+  --borda: #e2e4e9;
+  --borda-forte: #cbd2db;
+  --fundo: #f3f4f6;
+  --fundo-suave: #eceef2;
+  --fundo-cartao: #fff;
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.tela {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 12px;
+  padding: 8px 24px 16px;
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  h1 { margin: 0; font-size: 1.25rem; color: var(--texto-secundario); }
+}
+.selo { padding: 2px 8px; border-radius: 999px; background: var(--primaria-suave); color: var(--primaria); font-size: 12px; font-weight: 600; }
+.servico { overflow: hidden; max-width: 320px; color: var(--sutil); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.botao-texto {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--primaria);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover { background: var(--primaria-suave); }
+}
+.fechar {
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  &:hover { background: var(--fundo-suave); }
+}
+
+.corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.coluna {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 12px;
+  background: var(--fundo-cartao);
+}
+.centro { overflow: hidden; &.arrastando { outline: 2px dashed var(--primaria); outline-offset: -6px; } }
+.lateral { overflow: hidden; }
+.coluna-titulo { margin: 0; font-weight: 600; color: var(--texto-secundario); }
+
+app-visualizador-documento[hidden] { display: none; }
+
+.guias {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.rotulo-guias { font-size: 13px; color: var(--sutil); }
+.guia {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 8px;
+  background: none;
+  color: var(--texto-secundario);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &.principal { border-color: var(--primaria); color: var(--primaria); }
+  &.ativa { box-shadow: 0 0 0 2px var(--primaria); font-weight: 600; }
+  &.falha { border-color: var(--cor-erro); }
+  &.conferencia { margin-left: auto; background: var(--fundo-suave); }
+}
+.guia-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.falha-marca {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--cor-erro);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.soltar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  border: 2px dashed var(--borda-forte);
+  border-radius: 12px;
+  color: var(--texto-secundario);
+  text-align: center;
+  cursor: pointer;
+
+  &.arrastando, &:hover { border-color: var(--primaria); background: var(--primaria-suave); }
+}
+.icone-soltar { font-size: 40px; line-height: 1; color: var(--primaria); }
+
+.conferencia {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: auto;
+  p { margin: 0; }
+}
+.tabela { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--borda); text-align: left; vertical-align: top; }
+  th { background: var(--fundo-suave); font-weight: 600; white-space: nowrap; }
+  tr.falha td:first-child { box-shadow: inset 3px 0 0 var(--cor-erro); }
+  td.invalido { background: #fef2f2; color: var(--cor-erro); }
+}
+.guia-celula { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aparencia {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--fundo-suave);
+  font-size: 13px;
+  ul { margin: 6px 0 0; padding-left: 18px; }
+}
+.link { padding: 0; border: 0; background: none; color: var(--primaria); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.sutil { color: var(--sutil); }
+.alerta { color: var(--alerta); }
+.erro { color: var(--cor-erro); }
+
+.tela-pequena { display: none; }
+
+@media (max-width: 1279px) {
+  .corpo { grid-template-columns: minmax(0, 1fr) 340px; }
+}
+
+// Marcar células no celular não funciona bem: limitado de propósito.
+@media (max-width: 1023px) {
+  .corpo { display: none; }
+  .tela-pequena { display: block; padding: 32px 0; text-align: center; color: var(--texto-secundario); }
+}
+
+.carregando {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgb(255 255 255 / 70%);
+  backdrop-filter: blur(6px);
+  animation: aparecer 0.3s ease-in-out;
+  p { margin: 0; font-size: 15px; font-weight: 600; color: var(--texto-secundario); }
+}
+.pontos {
+  display: flex;
+  gap: 8px;
+  span {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: linear-gradient(113deg, var(--primaria), var(--cor-competencia));
+    animation: saltar 1.2s infinite ease-in-out;
+  }
+  span:nth-child(2) { animation-delay: 0.2s; }
+  span:nth-child(3) { animation-delay: 0.4s; }
+}
+
+@keyframes aparecer {
+  from { opacity: 0; }
+}
+@keyframes saltar {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+  30% { transform: translateY(-10px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carregando, .pontos span { animation: none; }
+}

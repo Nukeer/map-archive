@@ -1,0 +1,177 @@
+<div class="barra">
+  <div class="abas" role="tablist" aria-label="Como ver o documento">
+    <button type="button" role="tab" [class.ativa]="visao() === 'documento'" [attr.aria-selected]="visao() === 'documento'" (click)="trocarVisao('documento')">
+      Documento
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.ativa]="visao() === 'blocos'"
+      [attr.aria-selected]="visao() === 'blocos'"
+      title="A página separada nas regiões do documento, cada uma com suas colunas"
+      (click)="trocarVisao('blocos')"
+    >
+      Blocos
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.ativa]="visao() === 'planilha'"
+      [attr.aria-selected]="visao() === 'planilha'"
+      title="A página inteira como planilha (as referências Pág.1!B3 vêm daqui)"
+      (click)="trocarVisao('planilha')"
+    >
+      Planilha
+    </button>
+  </div>
+
+  @if (totalPaginas() > 1) {
+    <div class="paginas" role="group" aria-label="Páginas do documento">
+      <span>Páginas:</span>
+      @for (p of paginas(); track p) {
+        <button
+          type="button"
+          class="ficha"
+          [class.ativa]="p === pagina()"
+          [class.marcada]="paginasMarcadas().has(p)"
+          [attr.aria-pressed]="p === pagina()"
+          [title]="paginasMarcadas().has(p) ? 'Página ' + p + ' · tem marcações' : 'Página ' + p"
+          (click)="irPara(p)"
+        >
+          {{ p }}
+        </button>
+      }
+      @if (totalPaginas() > paginas().length) {
+        <span class="sutil">+{{ totalPaginas() - paginas().length }}</span>
+      }
+    </div>
+  }
+
+  @if (visao() === 'documento') {
+    <div class="zoom">
+      <button type="button" class="ferramenta so-icone" aria-label="Diminuir zoom" title="Diminuir zoom" [disabled]="!podeDiminuir" (click)="alterarZoom(-1)">−</button>
+      <span class="zoom-valor">{{ percentual() }}%</span>
+      <button type="button" class="ferramenta so-icone" aria-label="Aumentar zoom" title="Aumentar zoom" [disabled]="!podeAumentar" (click)="alterarZoom(1)">+</button>
+      <button type="button" class="ferramenta" [class.ativa]="zoom() === 'ajustar'" title="Ajustar à largura do painel" (click)="ajustar()">⤢ Ajustar</button>
+      <button
+        type="button"
+        class="ferramenta"
+        [class.ativa]="contornarBlocos()"
+        [attr.aria-pressed]="contornarBlocos()"
+        title="Contornar os blocos (regiões) do documento"
+        (click)="contornarBlocos.set(!contornarBlocos())"
+      >
+        ▢ Blocos
+      </button>
+    </div>
+  }
+</div>
+
+@if (aviso(); as a) {
+  <p class="aviso-visualizador">{{ a }}</p>
+}
+
+<div class="moldura">
+  <div
+    #viewport
+    class="viewport"
+    tabindex="0"
+    [class.selecionavel]="selecionavel()"
+    [attr.data-tipo]="tipo()"
+    aria-label="Documento. Atalhos: Ctrl+Z desfazer, Ctrl+Shift+Z refazer, Esc cancela a seleção."
+    (keydown)="aoTeclar($event)"
+    (scroll)="atualizarMaisAbaixo()"
+    (pointerdown)="aoPressionar($event)"
+    (pointerover)="aoPassar($event)"
+  >
+    @if (carregando()) {
+      <div class="estado" role="status">Abrindo o documento…</div>
+    }
+    @if (erro()) {
+      <p class="estado erro">{{ erro() }}</p>
+    }
+
+    <div
+      class="pagina"
+      [hidden]="!totalPaginas() || visao() !== 'documento'"
+      [style.width.px]="tamanhoPagina().largura"
+      [style.height.px]="tamanhoPagina().altura"
+    >
+      <canvas #canvas></canvas>
+      @if (contornarBlocos()) {
+        @for (b of blocosDaPagina(); track b.numero) {
+          <span
+            class="contorno-bloco"
+            [attr.data-numero]="b.numero"
+            [style.left.%]="b.caixa.x * 100"
+            [style.top.%]="b.caixa.y * 100"
+            [style.width.%]="b.caixa.largura * 100"
+            [style.height.%]="b.caixa.altura * 100"
+          ></span>
+        }
+      }
+      @for (c of celulasDaPagina(); track c.id) {
+        <span
+          class="celula"
+          [attr.data-celula]="c.id"
+          [attr.data-tipo]="marcasVisiveis().get(c.id)?.tipo"
+          [attr.data-papel]="marcasVisiveis().get(c.id)?.papel"
+          [attr.data-ref]="referencia(c)"
+          [style.left.%]="c.caixa.x * 100"
+          [style.top.%]="c.caixa.y * 100"
+          [style.width.%]="c.caixa.largura * 100"
+          [style.height.%]="c.caixa.altura * 100"
+        ></span>
+      }
+    </div>
+
+    @if (totalPaginas() && visao() === 'blocos') {
+      <app-blocos-planilha [blocos]="blocosDaPagina()" [marcas]="marcasVisiveis()" />
+    }
+
+    @if (totalPaginas() && visao() === 'planilha') {
+      <table class="grade">
+        <thead>
+          <tr>
+            <th></th>
+            @for (col of colunas(); track col) {
+              <th>{{ col }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (linha of gradeDaPagina(); track $index) {
+            <tr>
+              <th>{{ $index + 1 }}</th>
+              @for (c of linha; track $index) {
+                @if (c) {
+                  <td [attr.data-celula]="c.id" [attr.data-tipo]="marcasVisiveis().get(c.id)?.tipo" [attr.data-papel]="marcasVisiveis().get(c.id)?.papel">
+                    {{ c.texto }}
+                  </td>
+                } @else {
+                  <td></td>
+                }
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+
+  @if (maisAbaixo()) {
+    <div class="mais-abaixo">
+      <button type="button" (click)="rolarParaBaixo()">↓ A página continua abaixo</button>
+    </div>
+  }
+</div>
+
+<div class="ferramentas" role="toolbar" aria-label="Ferramentas">
+  <div class="grupo-ferramentas">
+    <button type="button" class="ferramenta so-icone" aria-label="Desfazer" title="Desfazer (Ctrl+Z)" [disabled]="!podeDesfazer()" (click)="desfazer.emit()">↶</button>
+    <button type="button" class="ferramenta so-icone" aria-label="Refazer" title="Refazer (Ctrl+Shift+Z)" [disabled]="!podeRefazer()" (click)="refazer.emit()">↷</button>
+  </div>
+  @if (selecionavel()) {
+    <span class="dica">Clique para marcar · arraste ou Shift+clique para juntar células</span>
+  }
+</div>

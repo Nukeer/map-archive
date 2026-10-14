@@ -141,7 +141,7 @@
   <app-pdf-mapeamento-v4-modal [anterior]="anterior()" [salvos]="mapeamentos()" (salvar)="aoSalvar($event)" (cancelar)="fecharModal()" />
 }
 @if (modalAberto() === 'v5') {
-  <app-pdf-mapeamento-v5-modal [anterior]="anterior()" [outros]="mapeamentos()" (salvar)="aoSalvar($event)" (cancelar)="fecharModal()" />
+  <app-mapeamento-v5 [anterior]="anterior()" [salvos]="mapeamentos()" (salvar)="aoSalvar($event)" (cancelar)="fecharModal()" />
 }
 
 <router-outlet></router-outlet>

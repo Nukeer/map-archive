@@ -1,0 +1,45 @@
+<div class="fundo" (click)="fechar(false)"></div>
+
+<section class="cartao" [class.com-cena]="cena()" role="dialog" aria-modal="true" aria-labelledby="tutorial-v5-titulo" (keydown.escape)="fechar(false)">
+  @if (etapa(); as e) {
+    <p class="sobretitulo">{{ rotulo() }}</p>
+    <h2 id="tutorial-v5-titulo">{{ e.titulo }}</h2>
+    @if (cena(); as c) {
+      <div class="cena">
+        <app-cena-tutorial-v5 [etapa]="c" />
+      </div>
+    }
+    <p class="texto">{{ e.texto }}</p>
+  } @else {
+    <p class="sobretitulo">Mapear Documentos · v5</p>
+    <h2 id="tutorial-v5-titulo">Vamos ensinar o Tareffa a reconhecer esta guia</h2>
+    <p class="texto">
+      Você me mostra, em algumas guias do mesmo tipo, onde estão as informações. Eu aprendo o formato, confiro em todas as
+      guias e, a partir daí, reconheço sozinho as próximas.
+    </p>
+
+    <p class="secao">O que eu tiro de cada guia</p>
+    <ul class="campos">
+      <li data-tipo="cnpj"><strong>Identificador</strong> <span>CNPJ, CPF, CAEPF, CNO, IE ou IM</span></li>
+      <li data-tipo="competencia"><strong>Competência</strong> <span>ex.: 09/2026</span></li>
+      <li data-tipo="valor"><strong>Valor a pagar</strong> <span>ex.: R$ 1.100,00</span></li>
+      <li data-tipo="termo"><strong>Termos</strong> <span>textos que só este tipo de guia tem</span></li>
+    </ul>
+
+    <p class="secao">Como funciona</p>
+    <ol class="ciclo">
+      <li><span class="passo" aria-hidden="true">1</span> Escolha de 2 a 5 guias do mesmo tipo.</li>
+      <li><span class="passo" aria-hidden="true">2</span> Clique no documento para marcar cada informação.</li>
+      <li><span class="passo" aria-hidden="true">3</span> Eu verifico em todas as guias e mostro o que divergiu.</li>
+    </ol>
+  }
+
+  <div class="acoes">
+    <label class="nunca">
+      <input type="checkbox" [checked]="nuncaMais()" (change)="nuncaMais.set(!nuncaMais())" />
+      Não mostrar de novo
+    </label>
+    <button type="button" class="botao" (click)="fechar(true)">Pular tutorial</button>
+    <button type="button" class="botao primario" data-foco-inicial (click)="fechar(false)">{{ etapa() ? 'Tentar fazer' : 'Começar' }} →</button>
+  </div>
+</section>

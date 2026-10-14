@@ -1,0 +1,314 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+}
+
+[data-tipo='cnpj'] { --cor: var(--cor-cnpj); }
+[data-tipo='competencia'] { --cor: var(--cor-competencia); }
+[data-tipo='valor'] { --cor: var(--cor-valor); }
+[data-tipo='termo'] { --cor: var(--cor-termo); }
+
+p { margin: 0; }
+
+.etapas {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--sutil);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:disabled { cursor: default; }
+  &:hover:not(:disabled) { background: var(--fundo-suave); }
+}
+
+.marcador {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 50%;
+  font-size: 12px;
+}
+.titulo { font-size: 14px; }
+.resumo {
+  overflow: hidden;
+  margin-left: auto;
+  max-width: 55%;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.etapa.feita .cabecalho { color: var(--texto-secundario); }
+.etapa.feita .marcador { border-color: var(--sucesso); background: var(--sucesso-suave); color: var(--sucesso); }
+.etapa.atual .cabecalho { color: var(--texto-secundario); font-weight: 600; }
+.etapa.atual .marcador { border-color: var(--primaria); background: var(--primaria); color: #fff; }
+
+.corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 4px 12px 34px;
+  font-size: 13px;
+}
+
+.instrucao {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  p { color: var(--texto-secundario); }
+}
+.ajuda {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  border: 1px solid var(--borda-forte);
+  border-radius: 50%;
+  background: none;
+  color: var(--sutil);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  &:hover { background: var(--fundo-suave); }
+}
+
+.ok { color: var(--sucesso); }
+.alerta { color: var(--alerta); }
+.erro { color: var(--cor-erro); }
+.sutil, .dica, .vazio { color: var(--sutil); }
+.dica { font-size: 12px; }
+.nota { padding: 6px 8px; border-radius: 6px; background: var(--primaria-suave); color: var(--primaria); font-size: 12px; }
+.subtitulo { font-weight: 600; small { color: var(--sutil); font-weight: 400; } }
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--texto-secundario);
+}
+input[type='text'], select {
+  padding: 7px 9px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 6px;
+  background: var(--fundo-cartao);
+  font: inherit;
+  font-weight: 400;
+}
+
+.modelos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    background: var(--fundo-cartao);
+    &.invalido { border-style: dashed; opacity: 0.8; }
+    small { flex-basis: 100%; }
+  }
+}
+.modelo-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.estrela { color: var(--primaria); }
+.selo { padding: 1px 8px; border-radius: 999px; background: var(--primaria-suave); color: var(--primaria); font-size: 11px; }
+
+.cartao-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-left: 4px solid var(--cor);
+  border-radius: 8px;
+  background: var(--fundo-cartao);
+}
+dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  dt { color: var(--sutil); }
+  dd { margin: 0; color: var(--texto-secundario); word-break: break-word; }
+}
+
+.termos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li:not(.vazio) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 4px 4px 10px;
+    border: 1px solid var(--borda);
+    border-left: 4px solid var(--cor, var(--cor-termo));
+    border-radius: 6px;
+    background: var(--fundo-cartao);
+    span { flex: 1; }
+    &.com-erro { border-left-color: var(--cor-erro); }
+    small { display: block; }
+  }
+}
+
+.sugestoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.sugestao {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 4px 10px;
+  border: 1px dashed var(--borda-forte);
+  border-radius: 8px;
+  background: none;
+  color: var(--texto-secundario);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  small { color: var(--sutil); font-size: 11px; }
+  &.exclusiva { border-style: solid; border-color: var(--cor-termo); }
+  &:hover { background: var(--fundo-suave); }
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--sucesso-suave);
+  &.com-erro { background: var(--alerta-suave); }
+  small { word-break: break-word; }
+}
+.item-topo { display: flex; align-items: center; gap: 6px; strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .link { margin-left: auto; } }
+
+.resumo-final { padding: 8px 10px; border-radius: 8px; background: var(--fundo-cartao); }
+
+.exclusoes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  summary { cursor: pointer; font-weight: 600; small { color: var(--sutil); font-weight: 400; } }
+  > * + * { margin-top: 6px; }
+}
+.opcao { display: flex; align-items: baseline; gap: 6px; }
+.nova-exclusao { display: flex; gap: 6px; input { flex: 1; min-width: 0; } }
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 8px;
+  background: var(--fundo-cartao);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &.primario { border-color: var(--primaria); background: var(--primaria); color: #fff; }
+  &.perigo { border-color: var(--alerta); background: var(--alerta); color: #fff; }
+  &.contorno { align-self: flex-start; color: var(--primaria); border-color: var(--primaria); }
+  &.largo { width: 100%; min-height: 40px; }
+  &.desabilitado { opacity: 0.6; cursor: wait; }
+}
+.link { padding: 0; border: 0; background: none; color: var(--primaria); font: inherit; font-size: 12px; cursor: pointer; }
+.icone { width: 24px; height: 24px; flex: none; border: 0; border-radius: 6px; background: none; color: var(--sutil); cursor: pointer; &:hover { background: var(--fundo-suave); } }
+
+.rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  // Sombra para cima: separa o rodapé da lista que rola por baixo.
+  box-shadow: 0 -10px 12px -12px rgb(15 23 42 / 35%);
+}
+.falta { flex-basis: 100%; color: var(--sutil); font-size: 12px; text-align: right; }
+.voltar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--borda-forte);
+  border-radius: 50%;
+  background: var(--fundo-cartao);
+  font-size: 18px;
+  cursor: pointer;
+  &:disabled { opacity: 0.4; cursor: default; }
+}
+
+// O Próximo é a ação principal do painel.
+.proximo {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primaria);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  &:disabled { background: var(--borda-forte); color: var(--sutil); cursor: not-allowed; }
+}
+
+// Liberado: cresce uma vez, depois pulsa e a seta aponta para frente.
+.proximo.pronto {
+  animation: surgir 0.45s ease-out, pulsar 1.8s ease-out 0.45s infinite;
+  .seta { display: inline-block; animation: seta 1.2s ease-in-out infinite; }
+}
+
+@keyframes surgir {
+  45% { transform: scale(1.06); }
+}
+@keyframes pulsar {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primaria) 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--primaria) 0%, transparent); }
+}
+@keyframes seta {
+  50% { transform: translateX(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proximo.pronto, .proximo.pronto .seta { animation: none; }
+}

@@ -1,0 +1,312 @@
+<ol class="etapas" aria-label="Etapas do mapeamento">
+  @for (etapa of state.etapas; track etapa.id; let i = $index) {
+    <li class="etapa" [class.atual]="i === state.indice()" [class.feita]="state.feita(i) && i !== state.indice()">
+      <button
+        type="button"
+        class="cabecalho"
+        [disabled]="!state.podeAbrir(i) || i === state.indice()"
+        [attr.aria-current]="i === state.indice() ? 'step' : null"
+        (click)="state.irPara(i)"
+      >
+        <span class="marcador" aria-hidden="true">{{ state.feita(i) && i !== state.indice() ? '✓' : i + 1 }}</span>
+        <span class="titulo">{{ etapa.titulo }}</span>
+        @if (state.feita(i) && i !== state.indice()) {
+          <span class="resumo">{{ state.resumo(etapa.id) }}</span>
+        }
+      </button>
+
+      @if (i === state.indice()) {
+        <div class="corpo" [attr.data-tipo]="etapa.marca">
+          <div class="instrucao">
+            <p>{{ etapa.instrucao }}</p>
+            <button type="button" class="ajuda" aria-label="Ver o tutorial desta etapa" title="Ver o tutorial desta etapa" (click)="reabrirTutorial()">?</button>
+          </div>
+
+          <!-- Feito: a etapa já vale; o Próximo passa a chamar a atenção. -->
+          @if (etapa.id !== 'conferir' && etapa.id !== 'concluir' && state.valida(etapa.id)) {
+            <p class="ok" role="status">✓ {{ state.resumo(etapa.id) }}</p>
+          }
+
+          @switch (etapa.id) {
+            @case ('documentos') {
+              <label class="campo">
+                Serviço (tipo de documento)
+                <input type="text" placeholder="Ex.: DARF, Guia DAS, GRF FGTS" [value]="state.nome()" (input)="state.nome.set($any($event.target).value)" />
+              </label>
+              @if (state.anterior(); as a) {
+                <p class="nota">
+                  Este serviço já tem mapeamento (v{{ a.versao }}, {{ a.atualizadoEm | date: 'dd/MM/yyyy HH:mm' }}). Vou comparar com ele ao
+                  verificar.
+                </p>
+              }
+
+              @if (state.modelos().length) {
+                <ul class="modelos">
+                  @for (m of state.modelos(); track m.nome) {
+                    <li [class.invalido]="m.semTexto">
+                      <span class="modelo-nome" [title]="m.nome">
+                        @if (m === state.principal()) {
+                          <span class="estrela" aria-hidden="true">★</span>
+                        }
+                        {{ m.nome }}
+                      </span>
+                      @if (m === state.principal()) {
+                        <span class="selo">principal</span>
+                      } @else if (!m.semTexto) {
+                        <button type="button" class="link" (click)="state.tornarPrincipal(m.nome)">marcar nesta</button>
+                      }
+                      <button type="button" class="icone" [attr.aria-label]="'Remover ' + m.nome" title="Remover" (click)="state.removerModelo(m.nome)">✕</button>
+                      @if (m.semTexto) {
+                        <small class="erro">Sem texto selecionável (digitalizada?): fica de fora.</small>
+                      } @else if (!m.aparencia) {
+                        <small class="alerta">Não deu para desenhar: a aparência fica sem esta guia.</small>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+              @if (state.modelos().length < state.maximoModelos) {
+                <label class="botao contorno" [class.desabilitado]="state.carregando()">
+                  {{ state.carregando() ? 'Lendo as guias…' : state.modelos().length ? '+ Adicionar mais guias' : '+ Escolher guias' }}
+                  <input type="file" multiple hidden [accept]="aceitos" [disabled]="state.carregando()" (change)="adicionar.emit($event)" />
+                </label>
+              }
+              <p class="dica">A guia principal (★) é onde você marca. As outras servem para eu conferir e aprender o que é fixo.</p>
+              @if (state.erroArquivos()) {
+                <p class="erro">{{ state.erroArquivos() }}</p>
+              }
+            }
+
+            @case ('identificador') {
+              <label class="campo">
+                Tipo do identificador
+                <select (change)="definirTipo($any($event.target).value)">
+                  <option value="auto" [selected]="state.tipoIdentificador() === 'auto'">Reconhecer pelo formato</option>
+                  @for (t of tiposIdentificador; track t.tipo) {
+                    <option [value]="t.tipo" [selected]="state.tipoIdentificador() === t.tipo">{{ t.nome }} · {{ t.mascara }}</option>
+                  }
+                </select>
+              </label>
+              <ng-container *ngTemplateOutlet="cartaoCampo; context: { chave: 'cnpj' }" />
+            }
+            @case ('competencia') {
+              <ng-container *ngTemplateOutlet="cartaoCampo; context: { chave: 'competencia' }" />
+            }
+            @case ('valor') {
+              <ng-container *ngTemplateOutlet="cartaoCampo; context: { chave: 'valor' }" />
+            }
+
+            @case ('termos') {
+              <ul class="termos">
+                @for (t of state.termos(); track t.texto) {
+                  <li>
+                    <span>{{ t.texto }}</span>
+                    <button type="button" class="icone" [attr.aria-label]="'Tirar o termo ' + t.texto" title="Tirar" (click)="state.removerTermo(t.texto)">✕</button>
+                  </li>
+                } @empty {
+                  <li class="vazio">Nenhum termo ainda. Mínimo: {{ minimoTermos }}.</li>
+                }
+              </ul>
+              @if (sugestoes().length) {
+                <p class="subtitulo">Sugestões <small>clique para adicionar</small></p>
+                <div class="sugestoes">
+                  @for (s of sugestoes(); track s.texto) {
+                    <button
+                      type="button"
+                      class="sugestao"
+                      [class.exclusiva]="!s.tambemEm.length"
+                      [title]="s.tambemEm.length ? 'Também aparece em ' + s.tambemEm.join(', ') + ': ajuda menos a separar os tipos' : 'Aparece em todas as guias e em nenhum outro tipo salvo'"
+                      (click)="state.adicionarSugestao(s)"
+                    >
+                      + {{ s.texto }}
+                      <small>{{ s.tambemEm.length ? 'também em ' + s.tambemEm.join(', ') : 'só este tipo' }}</small>
+                    </button>
+                  }
+                </div>
+              }
+            }
+
+            @case ('conferir') {
+              <button type="button" class="botao primario largo" [disabled]="!state.base()" (click)="verificar()">
+                ▶ {{ state.itensVerificados() ? 'Verificar de novo' : 'Verificar' }}
+              </button>
+              @if (state.verificacaoVencida()) {
+                <p class="dica">Você mudou o mapeamento depois de verificar. Verifique de novo.</p>
+              }
+              @if (state.itensVerificados(); as itens) {
+                <p [class.ok]="!state.divergencias().length" [class.alerta]="state.divergencias().length">
+                  {{ state.testes().length - testesComFalha().length }} de {{ state.testes().length }} guias lidas corretamente ·
+                  {{ state.divergencias().length ? state.divergencias().length + ' divergência(s)' : 'nenhuma divergência' }}
+                </p>
+                @for (item of itens; track item.etapa) {
+                  <div class="item" [class.com-erro]="!item.ok">
+                    <span class="item-topo">
+                      <span aria-hidden="true">{{ item.ok ? '✓' : '✗' }}</span>
+                      <strong>{{ item.titulo }}</strong>
+                      @if (!item.ok) {
+                        <button type="button" class="link" (click)="corrigir(item)">Voltar e corrigir</button>
+                      }
+                    </span>
+                    <small class="sutil">{{ item.detalhe }}</small>
+                    @for (d of item.divergencias; track d) {
+                      <small class="erro">{{ d }}</small>
+                    }
+                  </div>
+                }
+                @for (t of testesComFalha(); track t.nome) {
+                  <div class="item com-erro">
+                    <span class="item-topo">
+                      <span aria-hidden="true">✗</span>
+                      <strong [title]="t.nome">{{ t.nome }}</strong>
+                      <button type="button" class="link" (click)="mostrarGuia.emit(t.nome)">Ver na guia</button>
+                    </span>
+                    @for (c of t.campos; track c.chave) {
+                      @if (!c.valido) {
+                        <small class="erro">{{ rotuloCampo(c.chave) }}: {{ c.valor ?? 'não lido' }}</small>
+                      }
+                    }
+                    @if (t.termosAusentes.length) {
+                      <small class="erro">Termos ausentes: {{ t.termosAusentes.join(', ') }}</small>
+                    }
+                  </div>
+                }
+              }
+            }
+
+            @case ('concluir') {
+              <dl class="resumo-final">
+                <dt>Serviço</dt>
+                <dd>{{ state.nome() }}</dd>
+                <dt>Guias</dt>
+                <dd>{{ state.validos().length }}</dd>
+                <dt>Identificador</dt>
+                <dd>{{ state.nomeDoIdentificador() }}</dd>
+                <dt>Termos</dt>
+                <dd>{{ state.termos().length }}</dd>
+                <dt>Aparência</dt>
+                <dd>
+                  @if (state.gerado()?.assinatura; as a) {
+                    {{ a.visual ? bordasEstaveis() + ' bordas estáveis' : 'sem desenho' }} ·
+                    {{ a.fontes.length ? a.fontes.length + ' fonte(s)' : 'sem fontes' }}{{ a.produtor ? ' · ' + a.produtor : '' }}
+                  }
+                </dd>
+              </dl>
+
+              <details class="exclusoes" [open]="state.exclusoes().length || state.comparacao()?.exclusoes?.length">
+                <summary>Evitar confusão com outros tipos <small>opcional</small></summary>
+                <p class="dica">Textos que não podem aparecer nesta guia. Se aparecerem, o documento é recusado.</p>
+                @if (state.comparacao(); as cmp) {
+                  @if (cmp.tipos.length) {
+                    <p class="dica">
+                      Tipos salvos:
+                      @for (t of cmp.tipos; track t.nome) {
+                        <span [class.alerta]="t.parecido >= 0.3">{{ t.nome }} ({{ t.parecido | percent }} parecido){{ $last ? '' : ', ' }}</span>
+                      }
+                    </p>
+                  }
+                  @for (e of cmp.exclusoes; track e.texto) {
+                    <label class="opcao">
+                      <input type="checkbox" [checked]="state.temExclusao(e.texto)" (change)="state.alternarExclusao(e.texto)" />
+                      {{ e.texto }} <small class="sutil">de {{ e.tipo }}</small>
+                    </label>
+                  }
+                }
+                <div class="nova-exclusao">
+                  <input
+                    type="text"
+                    placeholder="Outro texto e Enter"
+                    [value]="novaExclusao()"
+                    (input)="novaExclusao.set($any($event.target).value)"
+                    (keydown.enter)="incluirExclusao()"
+                  />
+                  <button type="button" class="botao" [disabled]="!novaExclusao().trim()" (click)="incluirExclusao()">Incluir</button>
+                </div>
+                <ul class="termos">
+                  @for (e of state.exclusoesInfo(); track e.texto) {
+                    <li [class.com-erro]="e.nosModelos.length">
+                      <span>
+                        {{ e.texto }}
+                        @if (e.nosModelos.length) {
+                          <small class="erro">aparece em {{ e.nosModelos.join(', ') }}: tire</small>
+                        }
+                      </span>
+                      <button type="button" class="icone" [attr.aria-label]="'Tirar a exclusão ' + e.texto" title="Tirar" (click)="state.alternarExclusao(e.texto)">✕</button>
+                    </li>
+                  }
+                </ul>
+              </details>
+
+              @if (state.anterior()) {
+                <p class="alerta">Este serviço já tem mapeamento. Concluir vai substituí-lo; o anterior fica no histórico.</p>
+              }
+              @if (state.divergencias().length) {
+                <p class="alerta">
+                  {{ state.divergencias().length }} divergência(s) ficam registradas no histórico e o gestor do departamento do serviço é notificado.
+                </p>
+              }
+              <button
+                type="button"
+                class="botao largo"
+                [class.primario]="!state.divergencias().length"
+                [class.perigo]="state.divergencias().length"
+                [disabled]="!state.podeConcluir()"
+                (click)="concluir.emit()"
+              >
+                {{ state.divergencias().length ? 'Concluir com Divergência' : 'Concluir Mapeamento' }}
+              </button>
+              @if (!state.podeConcluir() && state.itensVerificados()) {
+                <p class="erro">Tire as exclusões que aparecem nas próprias guias.</p>
+              }
+            }
+          }
+        </div>
+      }
+    </li>
+  }
+</ol>
+
+<footer class="rodape">
+  @if (state.oQueFalta(); as falta) {
+    <p class="falta">{{ falta }}</p>
+  }
+  <button type="button" class="voltar" aria-label="Voltar para a etapa anterior" title="Voltar para a etapa anterior" [disabled]="state.indice() === 0" (click)="state.voltar()">
+    ←
+  </button>
+  @if (state.atual().id !== 'concluir') {
+    <button type="button" class="proximo" [class.pronto]="state.podeAvancar()" [disabled]="!state.podeAvancar()" (click)="state.proximo()">
+      {{ state.rotuloProximo() }} <span class="seta" aria-hidden="true">→</span>
+    </button>
+  }
+</footer>
+
+<ng-template #cartaoCampo let-chave="chave">
+  @if (campo(chave); as c) {
+    <div class="cartao-campo">
+      <dl>
+        @if (chave === 'cnpj') {
+          <dt>Tipo</dt>
+          <dd>{{ nomeIdentificador(c.identificador) }}</dd>
+        }
+        <dt>Valor lido</dt>
+        <dd>
+          <strong>{{ chave === 'valor' ? formatarValor(c.exemplo) : c.exemplo }}</strong>
+        </dd>
+        <dt>Onde</dt>
+        <dd>{{ state.descreverCelulas(chave) }}</dd>
+        <dt>Rótulo de apoio</dt>
+        <dd>{{ descreverRotulo(c) }}</dd>
+      </dl>
+      <button type="button" class="link" (click)="state.limparCampo(chave)">Limpar e marcar de novo</button>
+    </div>
+  } @else if (erroDoCampo(chave)) {
+    <p class="erro">{{ erroDoCampo(chave) }}</p>
+  } @else {
+    <p class="dica">Ainda não marcado.</p>
+  }
+</ng-template>
+
+@if (mostrarIntro()) {
+  <app-tutorial-v5 (fechado)="fecharIntro($event)" />
+} @else if (tutorialDaEtapa()) {
+  <app-tutorial-v5 [etapa]="tutorialDaEtapa()" [cena]="state.atual().id" [rotulo]="rotuloTutorial()" (fechado)="fecharTutorial($event)" />
+}

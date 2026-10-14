@@ -5,7 +5,7 @@ import { PdfMapeamentoModalComponent } from './pdf-mapeamento/pdf-mapeamento-mod
 import { PdfMapeamentoV2ModalComponent } from './pdf-mapeamento-v2/pdf-mapeamento-v2-modal.component';
 import { PdfMapeamentoV3ModalComponent } from './pdf-mapeamento-v3/pdf-mapeamento-v3-modal.component';
 import { PdfMapeamentoV4ModalComponent } from './pdf-mapeamento-v4/pdf-mapeamento-v4-modal.component';
-import { PdfMapeamentoV5ModalComponent } from './pdf-mapeamento-v5/pdf-mapeamento-v5-modal.component';
+import { MapeamentoV5PageComponent } from './pdf-mapeamento-v5/editor/mapeamento-v5-page.component';
 import { MatchPdfComponent } from './match/match-pdf.component';
 import { BancadaComponent } from './bancada/bancada.component';
 import { EntradaHistorico, MapeamentoQualquer, MapeamentoSalvo, MapeamentosDbService, versaoDoMapeamento } from './armazenamento/mapeamentos-db.service';
@@ -28,7 +28,7 @@ function lerResponsavel(): string {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, PdfMapeamentoModalComponent, PdfMapeamentoV2ModalComponent, PdfMapeamentoV3ModalComponent, PdfMapeamentoV4ModalComponent, PdfMapeamentoV5ModalComponent, MatchPdfComponent, BancadaComponent],
+  imports: [CommonModule, RouterOutlet, PdfMapeamentoModalComponent, PdfMapeamentoV2ModalComponent, PdfMapeamentoV3ModalComponent, PdfMapeamentoV4ModalComponent, MapeamentoV5PageComponent, MatchPdfComponent, BancadaComponent],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
